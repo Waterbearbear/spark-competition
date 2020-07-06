@@ -1,25 +1,19 @@
-from utils.imgread import get_info,dicom_metainfo, dicom2array
-import glob
-import os
-from tqdm import tqdm
-import SimpleITK as sitk
-# import cv2
-import numpy as np
-import pandas as pd
-from PIL import Image, ImageDraw, ImageFont
 
 import config
 
 # from utils import generate_target
-from dataset import dataset , transform
+from datasets import dataset , transform
 from torch.utils.data import DataLoader
+
+
+import torch
 
 
 if __name__ == '__main__':
 
 
-    valiPath = r'E:\BME\competition\spark\data\lumbar_train51'
-    valijsonPath = r'E:\BME\competition\spark\data\lumbar_train51_annotation.json'
+    valPath = r'E:\BME\competition\spark\data\lumbar_train51'
+    valjsonPath = r'E:\BME\competition\spark\data\lumbar_train51_annotation.json'
 
     trainPath = r'E:\BME\competition\spark\data\lumbar_train150'
     trainjsonPath = r'E:\BME\competition\spark\data\lumbar_train150_annotation.json'
@@ -32,18 +26,73 @@ if __name__ == '__main__':
                                      is_train = True,
                                      transform= transform.train_transforms())
 
+    val_dataset = dataset.sparkset(data_root_path=valPath,
+                                     data_json_path=valjsonPath,
+                                     is_train=True,
+                                     transform=transform.train_transforms())
+
+
     train_data_loader = DataLoader(dataset= train_dataset ,
-                                   batch_size= 4,
+                                   batch_size= config.batch_size,
                                    shuffle = True,
                                    num_workers = 0)
 
+    val_data_loader = DataLoader(dataset=val_dataset,
+                                   batch_size=config.batch_size,
+                                   shuffle=True,
+                                   num_workers=0)
+
+    axial_train_dataset = dataset.axialdataset(data_root_path=trainPath,
+                                     data_json_path=trainjsonPath,
+                                     is_train=True,
+                                     transform=transform.train_transforms())
+
+    axial_val_dataset = dataset.axialdataset(data_root_path=valPath,
+                                               data_json_path=valjsonPath,
+                                               is_train=True,
+                                               transform=transform.train_transforms())
+
+
+    axial_train_data_loader = DataLoader(dataset=axial_train_dataset,
+                                   batch_size= config.batch_size,
+                                   shuffle=True,
+                                   num_workers=0)
+
+    axial_val_data_loader = DataLoader(dataset=axial_val_dataset,
+                                         batch_size=config.batch_size,
+                                         shuffle=True,
+                                         num_workers=0)
+
 
     for i,(img, target, meta) in enumerate(train_data_loader):
-        if i == 1:
-            print("img value",img[0][0][0:3])
-            print("img.shape: ",img.shape)
-            print("target.shape: ",target.shape)
-            print("meta: ",meta)
+        print("img value",img[img > 0.0])
+
+
+        print("img.shape: ",img.shape)
+        print("target.shape: ",target.shape)
+        # print("meta: ",meta)
+
+
+    for i,(img,label) in enumerate(axial_train_data_loader):
+
+        batch_size = img.shape[0]
+
+
+
+        label = transform.onehot(batch_size,config.num_classes,label)
+
+    for i, (img, target, meta) in enumerate(val_data_loader):
+        print("img value", img[img > 0.0])
+
+        print("img.shape: ", img.shape)
+        print("target.shape: ", target.shape)
+        # print("meta: ",meta)
+
+    for i, (img, label) in enumerate(axial_val_data_loader):
+        batch_size = img.shape[0]
+
+        label = transform.onehot(batch_size, config.num_classes, label)
+
 
 
 
