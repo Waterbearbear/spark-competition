@@ -14,7 +14,7 @@ import pandas as pd
 from PIL import Image, ImageFile
 import numpy as np
 
-from imgread import get_info, dicom2array
+from imgread import get_info, dicom2array,CreatAxialDataset
 from utils import generate_target
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
