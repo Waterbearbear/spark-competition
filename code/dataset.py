@@ -218,6 +218,99 @@ class sparkset(data.Dataset):
         meta = {'index': idx, 'pts': torch.Tensor(pts), 'tpts': tpts}
 
         return img, target, meta
+    
+
+class axialdataset(data.Dataset):
+    """
+    """
+
+    def __init__(self, data_root_path, data_json_path, is_train=True, transform=None):
+        # specify annotation file for dataset
+        if is_train:
+            self.data_root_path = data_root_path
+            self.data_json_path = data_json_path
+        else:
+            # 测试集情况待写
+            pass
+            # self.csv_file = cfg.DATASET.TESTSET
+            # self.data_root = cfg.DATASET.TESTROOT
+
+        self.all_data_dict = CreatAxialDataset(self.data_root_path, self.data_json_path)
+        self.is_train = is_train
+        self.transform = transform
+        # self.data_root = cfg.DATASET.ROOT
+        self.input_size = config.input_size
+        self.num_classes = config.num_classes
+
+        self.map = {'v1': 0, 'v2': 1, 'v3': 2, 'v4': 3, 'v5': 4}
+
+        self.mean = np.array([0.485], dtype=np.float32)
+        self.std = np.array([0.229], dtype=np.float32)
+
+    def __len__(self):
+        return len(self.all_data_dict)
+
+    def __getitem__(self, idx):
+        # idx 为图片索引
+
+        shape_list = []
+
+        # print(type(img))
+        # print(img.shape)
+        img_dir = self.all_data_dict[idx]['dcmPath']  # 获取图片的地址
+
+        # print(img_dir)
+        try:
+            img = dicom2array(img_dir)  # 获取具体的图片数据，二维数据
+        except:
+            print("read dirty data: ",img_dir)
+
+        label = self.all_data_dict[idx]['label']  # 获取图片的标签
+
+        # 有些label为两个值,选择前一个值
+        if ',' in label:
+            label = label.split(',')[0]
+
+        label = self.map[label]
+
+        height, weight = img.shape[0], img.shape[1]
+
+        # print(img.shape)
+        # print("before: ", img.shape)
+
+        # 图像裁剪
+        if weight > height:
+
+            extra_weight = weight - height
+            crop_left = int(extra_weight / 2) - 1
+            crop_right = int(extra_weight / 2) + height - 1
+
+            img = img[:, crop_left:crop_right]
+
+
+        elif height > weight:
+            extra_height = height - weight
+            crop_up = int(extra_height / 2) - 1
+            crop_down = int(extra_height / 2) + weight - 1
+            img = img[crop_up:crop_down, :]
+
+        img = Image.fromarray(img)
+
+        img = img.resize((self.input_size[0], self.input_size[1]))
+        # print(img.size)
+
+
+        # shape_list.append(img.shape)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        # print("img_dir: ",img_dir)
+        # print("label: ",label)
+
+        # img = img.unsqueeze(0)
+
+        return img,label
 
 
 if __name__ == '__main__':
