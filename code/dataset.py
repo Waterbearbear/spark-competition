@@ -4,6 +4,9 @@
 # Created by Tianheng Cheng(tianhengcheng@gmail.com), Yang Zhao
 # ------------------------------------------------------------------------------
 
+
+#该文件转移至datasets/dataset.py
+
 import os
 import random
 
