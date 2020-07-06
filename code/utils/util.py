@@ -2,7 +2,19 @@ import sys
 sys.path.append(r'.\utils')
 
 import numpy as np
+from sklearn.metrics import f1_score, precision_score, recall_score, \
+     accuracy_score
 from utils.imgread import dicom_metainfo, dicom2array
+
+
+def clf_metrics(predictions, targets, average='macro'):
+    f1 = f1_score(targets, predictions, average=average)
+    precision = precision_score(targets, predictions, average=average , zero_division= 0)
+    recall = recall_score(targets, predictions, average=average, zero_division = 0)
+    acc = accuracy_score(targets, predictions)
+
+    return acc, f1, precision, recall
+
 
 
 def generate_target(img, pt, sigma, label_type='Gaussian'):
