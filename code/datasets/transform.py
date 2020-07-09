@@ -17,12 +17,28 @@ import torch
 #     ]
 #     return transforms.Compose(trans_list)
 
+
 def train_transforms():
     trans_list = [
+        transforms.RandomApply([
+            transforms.RandomResizedCrop(size = 256,scale = (0.7,1.0))
+        ]),
+        transforms.RandomApply([
+
+            transforms.RandomRotation(degrees = 5,fill = (0,))
+        ]),
+        transforms.RandomApply([
+            transforms.ColorJitter(brightness=0.2, contrast=0.2)
+        ]),
+        transforms.RandomApply([
+            augmentations.RandomAddGaussianNoise()
+        ])
         # transforms.Normalize(mean = [0.486,0.486,0.486],std = [0.256,0.256,0.256]),
-        transforms.ToTensor()
+        # transforms.ToTensor()
     ]
+
     return transforms.Compose(trans_list)
+
 
 
 def val_transforms():
