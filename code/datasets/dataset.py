@@ -203,7 +203,6 @@ class sparkset(data.Dataset):
 
         return img, target, meta
 
-
 class axialdataset(data.Dataset):
     """
     """
@@ -222,6 +221,7 @@ class axialdataset(data.Dataset):
         self.all_data_dict = CreatAxialDataset(self.data_root_path, self.data_json_path)
         self.is_train = is_train
         self.transform = transform
+        self.totensor = transforms.ToTensor()
         # self.data_root = cfg.DATASET.ROOT
         self.input_size = config.input_size
         self.num_classes = config.num_classes
@@ -241,13 +241,13 @@ class axialdataset(data.Dataset):
 
         # print(type(img))
         # print(img.shape)
-        img_dir = self.all_data_dict[idx]['dcmPath']  # 获取图片的地址
+        self.img_dir = self.all_data_dict[idx]['dcmPath']  # 获取图片的地址
 
-        # print(img_dir)
+        # print(self.img_dir)
         try:
-            img = dicom2array(img_dir)  # 获取具体的图片数据，二维数据
+            img = dicom2array(self.img_dir)  # 获取具体的图片数据，二维数据
         except:
-            print("read dirty data: ",img_dir)
+            print("read dirty data: ",self.img_dir)
 
         label = self.all_data_dict[idx]['label']  # 获取图片的标签
 
@@ -286,16 +286,17 @@ class axialdataset(data.Dataset):
 
         # shape_list.append(img.shape)
 
-        if self.transform is not None:
+        if self.transform is not None and label != 0:
             img = self.transform(img)
 
-        # print("img_dir: ",img_dir)
+        img = self.totensor(img)
+
+        # print("self.img_dir: ",self.img_dir)
         # print("label: ",label)
 
         # img = img.unsqueeze(0)
+        # print("type label: ",type(label))
 
         return img,label
-
-
 if __name__ == '__main__':
     pass
