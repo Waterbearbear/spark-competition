@@ -158,7 +158,8 @@ def val():
         FN = 0
         FP = 0
 
-        criteria = nn.CrossEntropyLoss()
+        # criteria = nn.CrossEntropyLoss()
+        criteria = model_axial.focal_loss(alpha=[0.1,0.2,0.2,0.5,0.5], gamma=2, num_classes = 5)
         # Don't update model
         with torch.no_grad():
             tpr_list = []
@@ -170,6 +171,7 @@ def val():
             # Predict
             for batch_index, (img,label) in enumerate(val_dataloader):
                 data, target = img.to(device), label.to(device)
+
                 #            data = data[:, 0, :, :]
                 #            data = data[:, None, :, :]
                 output = model(data)
@@ -232,23 +234,36 @@ if __name__ == '__main__':
     train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                    batch_size=config.batch_size,
                                                    shuffle=True,
-                                                   num_workers= 2)
+                                                   num_workers= config.n_threads)
 
     val_dataset = dataset.axialdataset(data_root_path = config.valPath,
                                          data_json_path = config.valjsonPath,
                                          is_train=True,
-                                         transform=transform.val_transforms())
+                                         transform=None)
 
 
     val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset,
                                                  batch_size=config.batch_size,
                                                  shuffle=False)
 
-    model = models.densenet169(pretrained=True).cuda()
+    model = models.resnet152(pretrained=not config.pretrained).cuda()
     model.features[0] = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
     model.classifier = nn.Linear(in_features=1664, out_features=5, bias=True)
 
+    modelname = config.model_name
+
+    if config.pretrained == True:
+        print("loading pretrain model parameters")
+
+        pretrain_dict = torch.load(config.pretrainedPath)
+        model_dict = model.state_dict()
+
+        pretrained_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict}
+        model_dict.update(pretrain_dict)
+        model.load_state_dict(model_dict)
+
     # model = models.ResNet152(pretrained=True, progress=True)
+
     # model.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
     #
     # model.fc = nn.Linear(in_features=2048, out_features=5, bias=True)
@@ -261,11 +276,12 @@ if __name__ == '__main__':
 
 
     AUC_best = 0
-    modelname = 'DenseNet169'
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     f1_max = 0
 
     for epoch in range(1,config.epochs + 1):
+
         model.train()
 
         train_loss = 0
@@ -273,7 +289,11 @@ if __name__ == '__main__':
 
         for batch_index, (img,label) in enumerate(train_dataloader):
 
+            if batch_index%20 == 0:
+                util.imshow(img[0])
+
             # move data to device
+            # print("type target: ",type(target))
             img, target = img.to(device), label.to(device)
 
             # print("img: ",img)
@@ -294,7 +314,8 @@ if __name__ == '__main__':
             #         [-0.1270,  0.1958],
             #         [-0.2086,  0.4554],
 
-            criteria = nn.CrossEntropyLoss()
+            # criteria = nn.CrossEntropyLoss()
+            criteria = model_axial.focal_loss(alpha=[0.1,0.2,0.2,0.5,0.5], gamma=2, num_classes = 5)
             loss = criteria(output, target.long())
             # loss = lam * criteria(output, targets_a) + (1 - lam) * criteria(output, targets_b)
             train_loss =  train_loss + loss.item()
@@ -339,10 +360,5 @@ if __name__ == '__main__':
 
         if epoch == config.epochs:
             torch.save(model.state_dict(), "E:\BME\competition\spark\code\checkpoint\{}_epoch{}_F1_{:.4f}.pth".format(modelname,epoch,f1_max))
-
-
-
-
-
 
 
