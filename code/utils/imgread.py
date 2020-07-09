@@ -113,6 +113,17 @@ def get_info(dicomPath, jsonPath):
     return result
 
 
+
+def PointToPointDistance(point1,point2):
+
+    # 计算两点间距离
+    # point1 = np.array([x1,y1,z1])
+    # point2 = np.array([x2,y2,z2])
+
+    return np.square(point1 - point2).sum()
+
+
+
 def PointToSurfaceDistance(normal_vector,point_in_surface,point_outside):
     # normal_vector 法向量
     # point_in_surface 面上一点
@@ -403,6 +414,69 @@ def CreatAxialDataset(dicomPath,jsonPath):
 
 
     return axial_result_dict
+
+
+
+def AddExtraAxialData(dcm_info_csv_path,axial_info_csv_path):
+
+
+    dcm_info = pd.read_csv(dcm_info_csv_path)
+    axial_info = pd.read_csv(axial_info_csv_path)
+
+    mask = axial_info['Unnamed']
+    dcm_info.iloc[mask,:] = axial_info
+
+
+    pre_studyid = None
+    for index,data in enumerate(dcm_info):
+        studyid = data['studyUid']
+
+        if studyid == pre_studyid:
+            continue
+        pre_studyid = studyid
+        dcm_study_part = dcm_info[dcm_info['studyUid'] == studyid]
+        # axial_study_part = axial_info[axial_info['studyUid'] == studyid]
+        for j,part_data in enumerate(dcm_study_part):
+            if j==0 or j==len(dcm_study_part)-1 or pd.isna(part_data['label']):
+                continue
+
+            pre_data = dcm_study_part.iloc[j-1,:]
+            next_data = dcm_study_part.iloc[j+1,:]
+
+            point_pre = np.array(pre_data['ImagePosition'].split('\\'),np.float)
+            point_now = np.arange(part_data['ImagePosition'].split('\\'),np.float)
+            point_next = np.array(next_data['ImagePosition'].split('\\'),np.float)
+
+            d1 = PointToPointDistance(point_pre,point_now)
+            d2 = PointToPointDistance(point_now,point_next)
+
+
+            # if  pd.isna(pre_data['label']) and  pd.isna(next_data['label']):
+            #     if d1<d2:
+            #         pre_data['label'] = part_data['label']
+            #     else:
+            #         next_data['label'] = part_data['label']
+            #
+            # if not pd.isna(pre_data['label']) and not pd.isna(next_data['label']):
+            #     continue
+            #
+            # if not pd.isna(pre_data['label']) and pre_data['label'] != part_data['label']:
+            #     next_data['label'] = part_data['label']
+            #
+            #
+            # if pre_data['label'] == part_data['label']:
+            #     if np.abs(d1 - d2) < 2:
+            #         next_data['label'] = part_data['label']
+            #
+            # if not pd.isna(next_data['label']) and next_data['label'] != part_data['label']:
+            #     pre_data['label'] = part_data['label']
+            #
+            #
+            # if next_data['label'] == part_data['label']:
+            #     if np.abs(d1 - d2) < 2:
+            #         pre_data['label'] = part_data['label']
+
+
 
 
 
