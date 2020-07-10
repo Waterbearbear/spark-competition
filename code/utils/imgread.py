@@ -416,6 +416,15 @@ def CreatAxialDataset(dicomPath,jsonPath):
     return axial_result_dict
 
 
+def AddcsvInfo(bigdataframe,data_row,datapath,datalist =  ['disc_dcmPath','identification','label'] ):
+
+
+    for data in datalist:
+        bigdataframe.loc[bigdataframe['dcmPath'] == datapath,data ] = data_row[data]
+
+    return bigdataframe
+
+
 
 def AddExtraAxialData(dcm_info_csv_path,axial_info_csv_path):
 
@@ -423,62 +432,138 @@ def AddExtraAxialData(dcm_info_csv_path,axial_info_csv_path):
     dcm_info = pd.read_csv(dcm_info_csv_path)
     axial_info = pd.read_csv(axial_info_csv_path)
 
-    mask = axial_info['Unnamed']
-    dcm_info.iloc[mask,:] = axial_info
+    # print("dcm_info",dcm_info)
+    # mask = axial_info['Unnamed: 0']
+    # dcm_info.iloc[mask,:] = axial_info.drop(columns = ['Unnamed: 0'])
+
+    for index ,row in axial_info.iterrows():
+        dcm_path = row['dcmPath']
+        dcm_info.loc[dcm_info['dcmPath'] == dcm_path,'disc_dcmPath'] = row['disc_dcmPath']
+        dcm_info.loc[dcm_info['dcmPath'] == dcm_path, 'identification'] = row['identification']
+        dcm_info.loc[dcm_info['dcmPath'] == dcm_path, 'label'] = row['label']
+
+
+    # print(dcm_info)
+
 
 
     pre_studyid = None
-    for index,data in enumerate(dcm_info):
+    for index,data in dcm_info.iterrows():
+
+        #按studyid 进行遍历
+        # print("data: ",data)
         studyid = data['studyUid']
 
         if studyid == pre_studyid:
             continue
         pre_studyid = studyid
+
         dcm_study_part = dcm_info[dcm_info['studyUid'] == studyid]
+
+        dcm_study_part.reset_index(drop = False,inplace = True)
+        print("studyID: ",studyid)
+        # print(dcm_study_part)
         # axial_study_part = axial_info[axial_info['studyUid'] == studyid]
-        for j,part_data in enumerate(dcm_study_part):
-            if j==0 or j==len(dcm_study_part)-1 or pd.isna(part_data['label']):
-                continue
-
-            pre_data = dcm_study_part.iloc[j-1,:]
-            next_data = dcm_study_part.iloc[j+1,:]
-
-            point_pre = np.array(pre_data['ImagePosition'].split('\\'),np.float)
-            point_now = np.arange(part_data['ImagePosition'].split('\\'),np.float)
-            point_next = np.array(next_data['ImagePosition'].split('\\'),np.float)
-
-            d1 = PointToPointDistance(point_pre,point_now)
-            d2 = PointToPointDistance(point_now,point_next)
-
-
-            # if  pd.isna(pre_data['label']) and  pd.isna(next_data['label']):
-            #     if d1<d2:
-            #         pre_data['label'] = part_data['label']
-            #     else:
-            #         next_data['label'] = part_data['label']
+        count = 0
+        while dcm_study_part['label'].isnull().any():
+            count = count + 1
+            if count > 10:
+                count = 0
+                break
+            # print(dcm_study_part)
             #
-            # if not pd.isna(pre_data['label']) and not pd.isna(next_data['label']):
-            #     continue
-            #
-            # if not pd.isna(pre_data['label']) and pre_data['label'] != part_data['label']:
-            #     next_data['label'] = part_data['label']
-            #
-            #
-            # if pre_data['label'] == part_data['label']:
-            #     if np.abs(d1 - d2) < 2:
-            #         next_data['label'] = part_data['label']
-            #
-            # if not pd.isna(next_data['label']) and next_data['label'] != part_data['label']:
-            #     pre_data['label'] = part_data['label']
-            #
-            #
-            # if next_data['label'] == part_data['label']:
-            #     if np.abs(d1 - d2) < 2:
-            #         pre_data['label'] = part_data['label']
+            # print("*************************************************************************")
+
+            for j,part_data in dcm_study_part.iterrows():
+                #study_part的每一个项进行遍历
+                if j==0 or j==len(dcm_study_part)-1 or pd.isna(part_data['label']):
+                    continue
+
+                print("******************************************")
+                print("dcm study part")
+                print(dcm_study_part)
+
+                print("part_data")
+                print(part_data)
+
+                print("j:",j)
+                print("len dcmstudypart: ",len(dcm_study_part))
+
+                print("*****************************************")
+                pre_data = dcm_study_part.iloc[j-1,:]
+                next_data = dcm_study_part.iloc[j+1,:]
+
+                # print(pre_data)
+                # print(part_data['ImagePosition'].split('\\'))
+
+                point_pre = np.array(pre_data['ImagePosition'].split('\\'),np.float)
+                point_now = np.array(part_data['ImagePosition'].split('\\'),np.float)
+                point_next = np.array(next_data['ImagePosition'].split('\\'),np.float)
+
+                d1 = PointToPointDistance(point_pre,point_now)
+                d2 = PointToPointDistance(point_now,point_next)
 
 
+                if  pd.isna(pre_data['label']) and  pd.isna(next_data['label']):
+                    if d1<d2:
+                        pre_data['label'] = part_data['label']
+                        datapath = pre_data['dcmPath']
+
+                        dcm_study_part = AddcsvInfo(dcm_study_part,part_data,datapath)
 
 
+                    else:
+                        # print(next_data['label'])
+                        next_data['label'] = part_data['label']
+                        datapath = next_data['dcmPath']
+                        dcm_study_part = AddcsvInfo(dcm_study_part, part_data, datapath)
+                        print(dcm_study_part.loc[dcm_study_part['dcmPath'] == datapath,'label'])
+
+                elif not pd.isna(pre_data['label']) and not pd.isna(next_data['label']):
+                    continue
+
+                elif not pd.isna(pre_data['label']) and pre_data['label'] != part_data['label']:
+                    next_data['label'] = part_data['label']
+                    datapath = next_data['dcmPath']
+                    dcm_study_part = AddcsvInfo(dcm_study_part, part_data, datapath)
+
+
+                elif pre_data['label'] == part_data['label']:
+                    if np.abs(d1 - d2) < 2:
+                        next_data['label'] = part_data['label']
+                        datapath = next_data['dcmPath']
+                        dcm_study_part = AddcsvInfo(dcm_study_part, part_data, datapath)
+
+                elif not pd.isna(next_data['label']) and next_data['label'] != part_data['label']:
+                    pre_data['label'] = part_data['label']
+                    datapath = pre_data['dcmPath']
+
+                    dcm_study_part = AddcsvInfo(dcm_study_part, part_data, datapath)
+
+
+                elif next_data['label'] == part_data['label']:
+                    if np.abs(d1 - d2) < 2:
+                        pre_data['label'] = part_data['label']
+                        datapath = pre_data['dcmPath']
+
+                dcm_study_part = AddcsvInfo(dcm_study_part,part_data,datapath)
+                # print("************************************")
+                #
+                # print("study_part")
+                # print(dcm_study_part)
+
+                for index, row in dcm_study_part.iterrows():
+                    dcm_path = row['dcmPath']
+                    dcm_info.loc[dcm_info['dcmPath'] == dcm_path, 'disc_dcmPath'] = row['disc_dcmPath']
+                    dcm_info.loc[dcm_info['dcmPath'] == dcm_path, 'identification'] = row['identification']
+                    dcm_info.loc[dcm_info['dcmPath'] == dcm_path, 'label'] = row['label']
+
+                # print("dcm_info")
+                # print(dcm_info)
+                #
+                # print("**************************************")
+
+    dcm_info.to_csv("new_axial.csv")
 
 
 if __name__ == '__main__':
