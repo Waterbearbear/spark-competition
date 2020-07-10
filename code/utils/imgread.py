@@ -113,6 +113,36 @@ def get_info(dicomPath, jsonPath):
     return result
 
 
+def ListSecondMinIndex(lt):
+    print(lt)
+    max = 0
+
+    s = {}
+
+    for i in range(len(lt)):
+
+        flag = 0
+
+        for j in range(len(lt)):
+
+            if lt[i] <= lt[j] and i != j:
+                flag = flag + 1
+
+        s[i] = flag
+
+        if flag > max:
+            max = flag
+
+    # print(s)
+
+    for i in s:
+
+        if s[i] == max - 1:
+            break
+
+    return i
+
+
 
 def PointToPointDistance(point1,point2):
 
@@ -370,20 +400,23 @@ def CreatAxialDataset(dicomPath,jsonPath):
                     # print(disc_to_all_axial_distance)
                     #找到距离最小的轴状图，记录其路径
                     min_distant_index = disc_to_all_axial_distance.index(min(disc_to_all_axial_distance))
+                    second_min_distant_index = ListSecondMinIndex(disc_to_all_axial_distance)
 
-                    axial_path  = study_all_axial[min_distant_index]['dcmPath']
 
-                    # print("find min: ",min(disc_to_all_axial_distance))
-                    # print("axial_path: ",axial_path)
-                    # print("satt_path: ",study['dcmPath'])
-                    # print(axial_result_csv.disc_dcmPath[axial_result_csv['dcmPath'] == axial_path])
+                    for min_index in [min_distant_index,second_min_distant_index]:
+                        axial_path  = study_all_axial[min_index]['dcmPath']
 
-                    # break
-                    axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'disc_dcmPath']   = study['dcmPath']
-                    axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'identification'] = point['tag']['identification']
-                    axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'label']          = point['tag']['disc']
-                    if point['tag']['disc'] == '':
-                        axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'label']    = 'v1'
+                        # print("find min: ",min(disc_to_all_axial_distance))
+                        # print("axial_path: ",axial_path)
+                        # print("satt_path: ",study['dcmPath'])
+                        # print(axial_result_csv.disc_dcmPath[axial_result_csv['dcmPath'] == axial_path])
+
+                        # break
+                        axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'disc_dcmPath']   = study['dcmPath']
+                        axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'identification'] = point['tag']['identification']
+                        axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'label']          = point['tag']['disc']
+                        if point['tag']['disc'] == '':
+                            axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'label']    = 'v1'
 
             # print(axial_result_csv)
 
