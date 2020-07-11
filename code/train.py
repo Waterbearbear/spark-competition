@@ -55,10 +55,10 @@ def train(opt, train_dataloader, val_dataloader, model):
         mean_loss = loss / count
         writer.add_scalar('epoch', mean_loss, epoch)
         model.save_network(model.net, epoch, opt.gpu_ids)
-        print("epoch:{}, mean_loss:{}".format(epoch, mean_loss))
+        print("epoch:{}, mean_loss:{}, lr:{}".format(epoch, mean_loss, model.scheduler.get_lr()))
         validate(epoch, val_dataloader, model)
-        if epoch > 150:
-            model.update_learning_rate()
+        model.update_learning_rate()
+
 
 
 def validate(epoch, dataloader, model):
@@ -95,6 +95,8 @@ def validate(epoch, dataloader, model):
     plt.close()
 
 
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train_path', type=str, default=r'F:\DATA\Lumbar\lumbar_train150\lumbar_train150')
@@ -108,7 +110,7 @@ if __name__ == '__main__':
     parser.add_argument('--epoch', type=int, default=250, help='epoch')
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
     parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
-    parser.add_argument('--lr', type=float, default=0.0001, help='initial learning rate for adam')
+    parser.add_argument('--lr', type=float, default=0.001, help='initial learning rate for adam')
     opt = parser.parse_args()
     train_dataset = sparkset(opt.train_path, opt.train_json, is_flip=True)
     val_dataset = sparkset(opt.val_path, opt.val_json, is_flip=False)
@@ -116,3 +118,4 @@ if __name__ == '__main__':
     val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, batch_size=opt.batchsize, shuffle=True)
     model = Model(opt)
     train(opt, train_dataloader, val_dataloader, model)
+
