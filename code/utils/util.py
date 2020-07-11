@@ -53,3 +53,9 @@ def generate_target(img, pt, sigma, label_type='Gaussian'):
 
     img[img_y[0]:img_y[1], img_x[0]:img_x[1]] = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
     return img
+    
+    
+def compute_nme(preds, target):
+    interocular = np.linalg.norm(target[0, ] - target[10, ])
+    nme = np.sum(np.linalg.norm(preds - target, axis=1)) / (interocular * 11)
+    return nme
