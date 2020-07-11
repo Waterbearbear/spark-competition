@@ -13,7 +13,7 @@ import torch.utils.data as data
 import pandas as pd
 from PIL import Image, ImageFile
 import numpy as np
-
+from structure import construct_studies
 from utils.imgread import get_info, dicom2array,CreatAxialDataset
 from utils.util import generate_target
 
@@ -259,7 +259,8 @@ class TestDataset(data.Dataset):
         img = torch.Tensor(img)
         img = img.unsqueeze(0)
         meta = {'ori': ori_size, 'study_uid': middle_frame.study_uid, 'series_uid': middle_frame.series_uid,
-                'instance_uid': middle_frame.instance_uid, 'path': middle_frame.file_path}
+                'instance_uid': middle_frame.instance_uid, 'path': middle_frame.file_path,
+                'instance_number': middle_frame.instance_number}
         return img, meta
 
 class axialdataset(data.Dataset):
