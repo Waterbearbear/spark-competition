@@ -93,6 +93,11 @@ class DICOM:
             self.series_description: str = reader.GetMetaData(DICOM_TAG['seriesDescription'])
         except RuntimeError:
             self.series_description = ''
+            
+        try:
+            self.instance_number: int = reader.GetMetaData('0020|0013')
+        except RuntimeError:
+            self.instance_number = 0
 
         try:
             self._pixel_spacing = reader.GetMetaData(DICOM_TAG['pixelSpacing'])
