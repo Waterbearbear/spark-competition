@@ -207,9 +207,12 @@ def CaculateDisc3DCoordinate(ImagePosition,Disc_landmark,spacing,vector_x,vector
 
     return Disc_landmark_3DCoordinate
 
-def ExtractSattInfo(dicomPath,jsonPath):
+def ExtractSattInfo(dicomPath,jsonPath,is_train):
 
-    path = "train" if "150" in dicomPath else "val"
+    if is_train:
+        path = "train" if "150" in dicomPath else "val"
+    else:
+        path = "test"
 
     annotation_info = pd.DataFrame(columns=('studyUid', 'seriesUid', 'instanceUid', 'annotation'))
     json_df = pd.read_json(jsonPath)
@@ -265,9 +268,12 @@ def ExtractSattInfo(dicomPath,jsonPath):
 
     # return result
 
-def CreateAxialCsv(dicomPath):
+def CreateAxialCsv(dicomPath,is_train = True):
 
-    path = "train" if "150" in dicomPath else "val"
+    if is_train:
+        path = "train" if "150" in dicomPath else "val"
+    else:
+        path = "test"
 
     dcm_paths = glob.glob(os.path.join(dicomPath, "**", "**.dcm"))  # 具体的图片路径
     # print(dcm_paths)
@@ -289,7 +295,7 @@ def CreateAxialCsv(dicomPath):
                 row = pd.Series(
                     {'dcmPath': dcm_path, 'studyUid': studyUid, 'seriesUid': seriesUid, 'instanceUid': instanceUid,
                      'ImagePosition': ImagePosition, 'ImageOrientation': ImageOrientation, 'pixelspacing': pixelspacing,
-                     'Rows': Rows, 'Columns': Columns,'identification':'','disc_dcmPath':'','label':''})
+                     'Rows': Rows, 'Columns': Columns,'identification':'','disc_dcmPath':'','label':'','disc_instanceUid':''})
                 dcm_info = dcm_info.append(row, ignore_index=True)
             print('')
         except:
@@ -304,15 +310,17 @@ def CreateAxialCsv(dicomPath):
 
 
 
-def CreatAxialDataset(dicomPath,jsonPath):
+def CreatAxialDataset(dicomPath,jsonPath,is_train = True):
     # dicomPath:train或者val的根目录
     # jsonPath:标注文件
-
-    path = "train" if "150" in dicomPath else "val"
+    if is_train:
+        path = "train" if "150" in dicomPath else "val"
+    else:
+        path = "test"
     if not os.path.exists("axial_info_%s.npy"%path):
 
-        ExtractSattInfo(dicomPath ,jsonPath)
-        CreateAxialCsv(dicomPath)
+        ExtractSattInfo(dicomPath ,jsonPath,is_train = is_train)
+        CreateAxialCsv(dicomPath,is_train = is_train)
 
         result = np.load('result_%s.npy'%path, allow_pickle=True)
         axial_result = np.load('dcm_info_%s.npy'%path, allow_pickle=True)
@@ -341,7 +349,10 @@ def CreatAxialDataset(dicomPath,jsonPath):
             # print(annotation[0])
             # print(annotation[0]['data'])
             #
-            points = annotation[0]['data']['point']
+            if is_train:
+                points = annotation[0]['data']['point']
+            else:
+                points = annotation[0]['point']
             #
             # print(points)
 
@@ -350,56 +361,60 @@ def CreatAxialDataset(dicomPath,jsonPath):
                 #逐个点进行遍历
 
                 # print(point)
-                if 'disc' in point['tag'].keys():
+                # if 'disc' in point['tag'].keys():
 
                     # print(point)
 
-                    ImagePosition = np.array(study['ImagePosition'].split('\\'),np.float)
+                ImagePosition = np.array(study['ImagePosition'].split('\\'),np.float)
 
-                    Disc_landmark = [point['coord'][0],point['coord'][1]]
+                Disc_landmark = [point['coord'][0],point['coord'][1]]
 
-                    spacing = np.array(study['pixelspacing'].split('\\'),np.float)
+                spacing = np.array(study['pixelspacing'].split('\\'),np.float)
 
-                    direct_vector = np.array(study['ImageOrientation'].split('\\'),np.float)
+                direct_vector = np.array(study['ImageOrientation'].split('\\'),np.float)
 
-                    vector_x , vector_y = direct_vector[:3],direct_vector[3:]
+                vector_x , vector_y = direct_vector[:3],direct_vector[3:]
 
-                    Disc_landmark_3DCoordinate = CaculateDisc3DCoordinate(ImagePosition = ImagePosition,
-                                             Disc_landmark = Disc_landmark,
-                                             spacing = spacing,
-                                             vector_x = vector_x,
-                                             vector_y = vector_y)
+                Disc_landmark_3DCoordinate = CaculateDisc3DCoordinate(ImagePosition = ImagePosition,
+                                         Disc_landmark = Disc_landmark,
+                                         spacing = spacing,
+                                         vector_x = vector_x,
+                                         vector_y = vector_y)
 
-                    disc_to_all_axial_distance = []
-                    # print(len(study_all_axial))
-                    for i,axial in enumerate(study_all_axial):
-                        #对该disc点计算本study下所有的axial图像距离
+                disc_to_all_axial_distance = []
+                print(len(study_all_axial))
+                for i,axial in enumerate(study_all_axial):
+                    #对该disc点计算本study下所有的axial图像距离
 
-                        # print("",i)
-                        # print("index: %d,axialPath: %s "%(i,axial['dcmPath']),end = '')
+                    # print("",i)
+                    print("index: %d,axialPath: %s "%(i,axial['dcmPath']),end = '')
 
-                        ImagePosition = np.array(axial['ImagePosition'].split('\\'), np.float)
-
-
-                        spacing = np.array(axial['pixelspacing'].split('\\'), np.float)
-
-                        direct_vector = np.array(axial['ImageOrientation'].split('\\'), np.float)
-
-                        vector_x, vector_y = direct_vector[:3], direct_vector[3:]
-
-                        normal_vector = np.cross(vector_x,vector_y)
-
-                        distance = PointToSurfaceDistance(normal_vector = normal_vector,
-                                                          point_in_surface = ImagePosition,
-                                                          point_outside = Disc_landmark_3DCoordinate)
-
-                        # print("distance :",distance)
-                        disc_to_all_axial_distance.append(distance)
+                    ImagePosition = np.array(axial['ImagePosition'].split('\\'), np.float)
 
 
-                    # print(disc_to_all_axial_distance)
-                    #找到距离最小的轴状图，记录其路径
-                    min_distant_index = disc_to_all_axial_distance.index(min(disc_to_all_axial_distance))
+                    spacing = np.array(axial['pixelspacing'].split('\\'), np.float)
+
+                    direct_vector = np.array(axial['ImageOrientation'].split('\\'), np.float)
+
+                    vector_x, vector_y = direct_vector[:3], direct_vector[3:]
+
+                    normal_vector = np.cross(vector_x,vector_y)
+
+                    distance = PointToSurfaceDistance(normal_vector = normal_vector,
+                                                      point_in_surface = ImagePosition,
+                                                      point_outside = Disc_landmark_3DCoordinate)
+
+                    # print("distance :",distance)
+                    disc_to_all_axial_distance.append(distance)
+
+
+                print(disc_to_all_axial_distance)
+                #找到距离最小的轴状图，记录其路径
+                min_distant_index = disc_to_all_axial_distance.index(min(disc_to_all_axial_distance))
+
+
+
+                if is_train:
                     second_min_distant_index = ListSecondMinIndex(disc_to_all_axial_distance)
 
 
@@ -413,18 +428,43 @@ def CreatAxialDataset(dicomPath,jsonPath):
 
                         # break
                         axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'disc_dcmPath']   = study['dcmPath']
+                        axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path, 'disc_instanceUid'] = study['instanceUid']
                         axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'identification'] = point['tag']['identification']
-                        axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'label']          = point['tag']['disc']
-                        if point['tag']['disc'] == '':
-                            axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'label']    = 'v1'
+                        if 'disc' in point['tag'].keys():
+                            if point['tag']['disc'] == '':
+                                axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path, 'label'] = 'v1'
+                            else:
+                                axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'label']          = point['tag']['disc']
+                        else:
+                            if point['tag']['vertebra'] == '':
+                                axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path, 'label'] = 'v1'
+                            else:
+                                axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path, 'label'] = point['tag']['vertebra']
+
+                else:
+                    axial_path = study_all_axial[min_distant_index]['dcmPath']
+
+                    # print("find min: ",min(disc_to_all_axial_distance))
+                    # print("axial_path: ",axial_path)
+                    # print("satt_path: ",study['dcmPath'])
+                    # print(axial_result_csv.disc_dcmPath[axial_result_csv['dcmPath'] == axial_path])
+
+                    # break
+                    axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path, 'disc_dcmPath'] = study['dcmPath']
+                    axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path, 'disc_instanceUid'] = study['instanceUid']
+                    axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path, 'identification'] = point['tag']['identification']
+
+
 
             # print(axial_result_csv)
 
         # axial_result_csv.drop(columns=['Unnamed: 0'], inplace=True)
 
         # axial_result_csv['label'].fillna(value='v1', inplace=True)
-        axial_result_csv.dropna(axis=0, how='any', subset=['disc_dcmPath', 'identification', 'label'], inplace=True)
-
+        if is_train:
+            axial_result_csv.dropna(axis=0, how='any', subset=['disc_dcmPath', 'identification', 'label'], inplace=True)
+        else:
+            axial_result_csv.dropna(axis=0, how='any', subset=['disc_dcmPath'], inplace=True)
 
         # axial_result_csv.dropna(axis=0, how='any', inplace=True)
 
@@ -444,9 +484,10 @@ def CreatAxialDataset(dicomPath,jsonPath):
 
     else:
         axial_result_dict = np.load('axial_info_%s.npy'%path,allow_pickle = True)
+        axial_result_csv = pd.read_csv('axial_info_%s.csv'%path)
 
 
-    return axial_result_dict
+    return axial_result_dict , axial_result_csv
 
 
 def AddcsvInfo(bigdataframe,data_row,datapath,datalist =  ['disc_dcmPath','identification','label'] ):
@@ -597,11 +638,14 @@ def AddExtraAxialData(dcm_info_csv_path,axial_info_csv_path):
                 # print("**************************************")
 
     dcm_info.to_csv("new_axial.csv")
+            # print(dcm_study_part)
 
 
 if __name__ == '__main__':
     # dcm_path = r'E:/DATA/Spart_AI/lumbar_train51/train/study0/*.dcm'
     # file_list = glob.glob(dcm_path)
+
+    pd.set_option('expand_frame_repr', False)
 
 
 
@@ -616,32 +660,61 @@ if __name__ == '__main__':
     valPath = r'E:\BME\competition\spark\data\lumbar_train51'
     valjsonPath = r'E:\BME\competition\spark\data\lumbar_train51_annotation.json'
 
+    testPath = r"E:\BME\competition\spark\data\lumbar_testA50"
+    testjsonPath = r"E:\BME\competition\spark\data\test1.json"
+
+    axial_info_train_csv_path = r"E:\BME\competition\spark\code\utils\axial_info_train.csv"
+    dcm_info_train_csv_path   = r"E:\BME\competition\spark\code\utils\dcm_info_train.csv"
+
+    # AddExtraAxialData(dcm_info_csv_path = dcm_info_train_csv_path,
+    #                   axial_info_csv_path = axial_info_train_csv_path)
+
+
+    # CreatAxialDataset(dicomPath = trainPath,jsonPath = trainjsonPath , is_train = True)
+    # CreatAxialDataset(dicomPath=valPath, jsonPath=valjsonPath, is_train=True)
+    CreatAxialDataset(dicomPath=testPath, jsonPath=testjsonPath, is_train=False)
+
 
     # result = get_info(trainPath,trainjsonPath)
 
     # ##用于可视化关键点####
     # 可视化部分
 
-    for path in [[trainPath,trainjsonPath],[valPath,valjsonPath]]:
+    # ####################################  #用于生成轴状图数据 Csv 和 npy############################################################
 
-        result = get_info(path[0], path[1])
+    # for path in [[trainPath,trainjsonPath],[valPath,valjsonPath]]:
+    #
+    #     result = get_info(path[0], path[1])
+    #
+    #
+    #
+    #     pd.set_option('expand_frame_repr', False)
+    #
+    #     # distance = PointToSurfaceDistance(normal_vector,point_in_surface,point_outside)
+    #
+    #     # 定位图：0020|0032 Image Position;    0020|0037 Image Orientation Patient;    0028|0030 pixel spacing;
+    #     # 切片图：以上 +  0028|0010 rows;0028|0011 columns
+    #
+    #     axial_result = CreatAxialDataset(dicomPath=path[0], jsonPath=path[1])
 
-        # 用于生成生成轴状图数据
-
-        pd.set_option('expand_frame_repr', False)
-
-        # distance = PointToSurfaceDistance(normal_vector,point_in_surface,point_outside)
-
-        # 定位图：0020|0032 Image Position;    0020|0037 Image Orientation Patient;    0028|0030 pixel spacing;
-        # 切片图：以上 +  0028|0010 rows;0028|0011 columns
-
-        axial_result = CreatAxialDataset(dicomPath=path[0], jsonPath=path[1])
-
-        # 用于生成轴状图数据 Csv 和 npy
+    # #####################################用于生成轴状图数据 Csv 和 npy############################################################
 
 
 
-    #  用于可视化关键点 ########
+
+
+    # # result[:][:] = result
+    # # result = np.squeeze(result)
+    # # print(result[0])
+    # print(result[0][1][0]['data']['point'][0]['tag'])
+    # print(result[0][0])
+    # print(len(result))
+    # print(type(result))
+    # # print(type(result))
+    # # print(result)
+    #
+    #
+    # print(len(result))
     # for i in range(len(result)):
     #     img_dir = result[i][0]  # 获取图片的地址
     #     print(img_dir)
