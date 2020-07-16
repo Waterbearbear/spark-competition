@@ -474,7 +474,6 @@ class sparkset(data.Dataset):
 class axialdataset(data.Dataset):
     """
     """
-
     def __init__(self, data_root_path, data_json_path, is_train=True, transform=None):
         # specify annotation file for dataset
         if is_train:
@@ -520,6 +519,10 @@ class axialdataset(data.Dataset):
             print("read dirty data: ",self.img_dir)
 
         label = self.all_data_dict[idx]['label']  # 获取图片的标签
+        disc_path = self.all_data_dict[idx]['disc_dcmPath']
+        identification = self.all_data_dict[idx]['identification']
+        studyID = self.all_data_dict[idx]['studyUid']
+
 
         # 有些label为两个值,选择前一个值
         if ',' in label:
@@ -567,12 +570,15 @@ class axialdataset(data.Dataset):
         # img = img.unsqueeze(0)
         # print("type label: ",type(label))
 
-        return img,label
+        if self.is_train:
+            return img,label
+        else:
+            return img,label,disc_path,identification,studyID
+
 
 
 
 
 if __name__ == '__main__':
     pass
-if __name__ == '__main__':
-    pass
+
