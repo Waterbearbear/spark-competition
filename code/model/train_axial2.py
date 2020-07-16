@@ -13,6 +13,7 @@ import pytorch_warmup as warmup
 import argparse
 import torch.utils.data
 from model import model_axial
+from torchsampler import ImbalancedDatasetSampler
 from datasets import dataset , transform
 from PIL import Image
 import numpy as np
@@ -233,9 +234,11 @@ if __name__ == '__main__':
 
     train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                    batch_size=config.batch_size,
-                                                   shuffle=True,
-                                                   num_workers= config.n_threads)
-
+                                                   sampler=ImbalancedDatasetSampler(train_dataset,callback_get_label = callback_get_label),
+                                                   num_workers= config.n_threads,
+                                                   shuffle=False)
+    
+    
     val_dataset = dataset.axialdataset(data_root_path = config.valPath,
                                          data_json_path = config.valjsonPath,
                                          is_train=True,
