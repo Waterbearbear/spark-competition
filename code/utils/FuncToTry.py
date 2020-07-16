@@ -4,9 +4,42 @@ import config
 # from utils import generate_target
 from datasets import dataset , transform
 from torch.utils.data import DataLoader
-
+import pandas as pd
+import numpy as np
 
 import torch
+def second(lt):
+
+    print(lt)
+    max = 0
+
+    s = {}
+
+    for i in range(len(lt)):
+
+        flag = 0
+
+        for j in range(len(lt)):
+
+            if lt[i] <= lt[j] and i != j:
+
+                flag = flag + 1
+
+        s[i] = flag
+
+        if flag > max:
+
+            max = flag
+
+    # print(s)
+
+    for i in s:
+
+        if s[i] == max - 1:
+
+            break
+
+    return i
 
 
 if __name__ == '__main__':
@@ -18,82 +51,182 @@ if __name__ == '__main__':
     trainPath = r'E:\BME\competition\spark\data\lumbar_train150'
     trainjsonPath = r'E:\BME\competition\spark\data\lumbar_train150_annotation.json'
 
+    testPath = r"E:\BME\competition\spark\data\lumbar_testA50"
+    testjsonPath = r"E:\BME\competition\spark\data\test1.json"
+
+    pd.set_option('expand_frame_repr', False)
+
+    train_json = pd.read_json(trainjsonPath)
+
+    train_csv = pd.read_csv('axial_info_train.csv')
+    val_csv = pd.read_csv('axial_info_val.csv')
+
+    result_test = np.load('result_test.npy')
+    result_train = np.load('result_train.npy')
+
+
+    frames = [train_csv,val_csv]
+
+
+    test_studyUid = "1.3.6.1.4.1.43960.1.1.10503147.60120337.6399"
+
+    # print(test_json)
+
+    test_json = pd.read_json(testjsonPath,orient= 'records')
+
+    print(test_json.loc[test_json['studyUid'] == test_studyUid,:])
+
+    data = test_json.loc[test_json['studyUid'] == test_studyUid,'data']
+
+    # print(data.iloc[0])
+    data_dict = data.iloc[0]
+    # print(data_dict[0])
 
 
 
-    train_dataset = dataset.sparkset(data_root_path = trainPath ,
-                                     data_json_path = trainjsonPath,
-                                     is_train = True,
-                                     transform= transform.train_transforms())
+    # print(data_dict[0]['annotation'][0])
 
-    val_dataset = dataset.sparkset(data_root_path=valPath,
-                                     data_json_path=valjsonPath,
-                                     is_train=True,
-                                     transform=transform.train_transforms())
+    annotation = data_dict[0]['annotation'][0]
+    print("annotation: ",annotation['point'])
+    for point in annotation['point']:
 
 
-    train_data_loader = DataLoader(dataset= train_dataset ,
-                                   batch_size= config.batch_size,
-                                   shuffle = True,
-                                   num_workers = 0)
+        print("point: ",point)
 
-    val_data_loader = DataLoader(dataset=val_dataset,
-                                   batch_size=config.batch_size,
-                                   shuffle=True,
-                                   num_workers=0)
+        point['tag']['disc'] = 'v1'
 
-    axial_train_dataset = dataset.axialdataset(data_root_path=trainPath,
-                                     data_json_path=trainjsonPath,
-                                     is_train=True,
-                                     transform=transform.train_transforms())
+    data_dict[0]['annotation'][0] = annotation
+    data.iloc[0] = data_dict
 
-    axial_val_dataset = dataset.axialdataset(data_root_path=valPath,
-                                               data_json_path=valjsonPath,
-                                               is_train=True,
-                                               transform=transform.train_transforms())
+    print(data.iloc[0])
+
+    test_json.loc[test_json['studyUid'] == test_studyUid, 'data'].iloc[0] = data.iloc[0]
+
+    print(test_json.loc[test_json['studyUid'] == test_studyUid, 'data'].iloc[0])
 
 
-    axial_train_data_loader = DataLoader(dataset=axial_train_dataset,
-                                   batch_size= config.batch_size,
-                                   shuffle=True,
-                                   num_workers=0)
+    # print(data[0])
 
-    axial_val_data_loader = DataLoader(dataset=axial_val_dataset,
-                                         batch_size=config.batch_size,
-                                         shuffle=True,
-                                         num_workers=0)
+    # all_csv = pd.concat(frames)
+    #
+    # all_csv.reset_index(drop=True, inplace=True)
+    # all_csv.drop(columns = ['Unnamed: 0','Unnamed: 0.1'], inplace = True)
+    #
+    #
+    #
+    # all_csv.to_csv('all.csv')
+    # all_dict = all_csv.to_dict(orient= 'records')
 
+    # print(type(all_dict[0]))
+    #
+    # v1_data = all_csv.loc[all_csv['label'] == 'v1']
+    # v2_data = all_csv.loc[all_csv['label'] == 'v2']
+    # v3_data = all_csv.loc[all_csv['label'] == 'v3']
+    # v4_data = all_csv.loc[all_csv['label'] == 'v4']
+    # v5_data = all_csv.loc[all_csv['label'] == 'v5']
+    #
+    #
+    # print(v5_data.iloc[0,:])
+    # print(len(v5_data) + len(v4_data) + len(v3_data) + len(v2_data) + len(v1_data))
 
-    for i,(img, target, meta) in enumerate(train_data_loader):
-        print("img value",img[img > 0.0])
-
-
-        print("img.shape: ",img.shape)
-        print("target.shape: ",target.shape)
-        # print("meta: ",meta)
-
-
-    for i,(img,label) in enumerate(axial_train_data_loader):
-
-        batch_size = img.shape[0]
+    # print(all_csv.loc[all_csv['label'] == 'v1'])
 
 
 
-        label = transform.onehot(batch_size,config.num_classes,label)
-
-    for i, (img, target, meta) in enumerate(val_data_loader):
-        print("img value", img[img > 0.0])
-
-        print("img.shape: ", img.shape)
-        print("target.shape: ", target.shape)
-        # print("meta: ",meta)
-
-    for i, (img, label) in enumerate(axial_val_data_loader):
-        batch_size = img.shape[0]
-
-        label = transform.onehot(batch_size, config.num_classes, label)
+    # annotation = result_test[0]['annotation']
+    # annotation_trian = result_train[0]['annotation']
+    #
+    # print(annotation[0]['point'])
+    # print(annotation_trian[0]['data']['point'])
+    # print(annotation[0])
+    # print(annotation[0]['data'])
+    #
+    # points = annotation[0]['data']['point']
+    #
+    # print(points)
 
 
+    # print(train_json)
+    # print(test_json)
+
+    # print(test_json[0])
+    # print(type(test_json))
+    # print(test_json[0])
+
+    #
+    # train_dataset = dataset.sparkset(data_root_path = trainPath ,
+    #                                  data_json_path = trainjsonPath,
+    #                                  is_train = True,
+    #                                  transform= transform.train_transforms())
+    #
+    # val_dataset = dataset.sparkset(data_root_path=valPath,
+    #                                  data_json_path=valjsonPath,
+    #                                  is_train=True,
+    #                                  transform=transform.train_transforms())
+    #
+    #
+    # train_data_loader = DataLoader(dataset= train_dataset ,
+    #                                batch_size= config.batch_size,
+    #                                shuffle = True,
+    #                                num_workers = 0)
+    #
+    # val_data_loader = DataLoader(dataset=val_dataset,
+    #                                batch_size=config.batch_size,
+    #                                shuffle=True,
+    #                                num_workers=0)
+    #
+    # axial_train_dataset = dataset.axialdataset(data_root_path=trainPath,
+    #                                  data_json_path=trainjsonPath,
+    #                                  is_train=True,
+    #                                  transform=transform.train_transforms())
+    #
+    # axial_val_dataset = dataset.axialdataset(data_root_path=valPath,
+    #                                            data_json_path=valjsonPath,
+    #                                            is_train=True,
+    #                                            transform=transform.train_transforms())
+    #
+    #
+    # axial_train_data_loader = DataLoader(dataset=axial_train_dataset,
+    #                                batch_size= config.batch_size,
+    #                                shuffle=True,
+    #                                num_workers=0)
+    #
+    # axial_val_data_loader = DataLoader(dataset=axial_val_dataset,
+    #                                      batch_size=config.batch_size,
+    #                                      shuffle=True,
+    #                                      num_workers=0)
+    #
+    #
+    # for i,(img, target, meta) in enumerate(train_data_loader):
+    #     print("img value",img[img > 0.0])
+    #
+    #
+    #     print("img.shape: ",img.shape)
+    #     print("target.shape: ",target.shape)
+    #     # print("meta: ",meta)
+    #
+    #
+    # for i,(img,label) in enumerate(axial_train_data_loader):
+    #
+    #     batch_size = img.shape[0]
+    #
+    #
+    #
+    #     label = transform.onehot(batch_size,config.num_classes,label)
+    #
+    # for i, (img, target, meta) in enumerate(val_data_loader):
+    #     print("img value", img[img > 0.0])
+    #
+    #     print("img.shape: ", img.shape)
+    #     print("target.shape: ", target.shape)
+    #     # print("meta: ",meta)
+    #
+    # for i, (img, label) in enumerate(axial_val_data_loader):
+    #     batch_size = img.shape[0]
+    #
+    #     label = transform.onehot(batch_size, config.num_classes, label)
+    #
+    #
 
 
 
