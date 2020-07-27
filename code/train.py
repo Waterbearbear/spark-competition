@@ -2,7 +2,7 @@ import torch
 import argparse
 import torch.utils.data
 from model import Model
-from datasets.dataset import sparkset
+from datasets.dataset import CoordDataset
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
@@ -60,7 +60,6 @@ def train(opt, train_dataloader, val_dataloader, model):
         model.update_learning_rate()
 
 
-
 def validate(epoch, dataloader, model):
     count = 0
     nme_sum = 0
@@ -95,8 +94,6 @@ def validate(epoch, dataloader, model):
     plt.close()
 
 
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train_path', type=str, default=r'F:\DATA\Lumbar\lumbar_train150\lumbar_train150')
@@ -112,10 +109,9 @@ if __name__ == '__main__':
     parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
     parser.add_argument('--lr', type=float, default=0.001, help='initial learning rate for adam')
     opt = parser.parse_args()
-    train_dataset = sparkset(opt.train_path, opt.train_json, is_flip=True)
-    val_dataset = sparkset(opt.val_path, opt.val_json, is_flip=False)
+    train_dataset = CoordDataset(opt.train_path, opt.train_json, is_flip=True, is_rot=True)
+    val_dataset = CoordDataset(opt.val_path, opt.val_json, is_flip=False)
     train_dataloader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=opt.batchsize, shuffle=True)
     val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, batch_size=opt.batchsize, shuffle=True)
     model = Model(opt)
     train(opt, train_dataloader, val_dataloader, model)
-
