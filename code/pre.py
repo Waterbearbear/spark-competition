@@ -20,7 +20,7 @@ if __name__ == '__main__':
     parser.add_argument('--isTrain', type=bool, default=False)
     parser.add_argument('--continue_train', type=bool, default=False)
     parser.add_argument('--batchsize', type=int, default=1, help='input batch size')
-    parser.add_argument('--weights', type=int, default=199)
+    parser.add_argument('--weights', type=int, default=100)
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
     parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
     parser.add_argument('--lr', type=float, default=0.0001, help='initial learning rate for adam')
@@ -47,14 +47,15 @@ if __name__ == '__main__':
                      "annotation": [annotation]}
         test_list = {"studyUid": meta['study_uid'][0], "data": [data_list]}
         json_list.append(test_list)
-        # point_size = 1
-        # point_color = (0, 0, 255)  # BGR
-        # thickness = 4  # 可以为 0 、4、8
-        # for coord in preCoord:
-        #     coord = (int(coord[0]), int(coord[1]))
-        #     cv2.circle(ori_img, coord, point_size, point_color, thickness)
-        #     cv2.imshow('', ori_img)
-        #     cv2.waitKey(0)
+        point_size = 1
+        point_color = (0, 0, 255)  # BGR
+        thickness = 4  # 可以为 0 、4、8
+        ori_img = cv2.merge([ori_img, ori_img, ori_img])
+        for coord in preCoord:
+            coord = (int(coord[0]), int(coord[1]))
+            cv2.circle(ori_img, coord, point_size, point_color, thickness)
+        cv2.imshow('', ori_img)
+        cv2.waitKey(0)
     print(json_list)
     jsondata = json.dumps(json_list)
     f = open('test_new.json', 'w')
