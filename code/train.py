@@ -104,7 +104,7 @@ if __name__ == '__main__':
     parser.add_argument('--isTrain', type=bool, default=True)
     parser.add_argument('--continue_train', type=bool, default=False)
     parser.add_argument('--batchsize', type=int, default=1, help='input batch size')
-    parser.add_argument('--epoch', type=int, default=250, help='epoch')
+    parser.add_argument('--epoch', type=int, default=100, help='epoch')
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
     parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
     parser.add_argument('--lr', type=float, default=0.001, help='initial learning rate for adam')
