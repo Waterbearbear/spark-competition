@@ -86,7 +86,7 @@ class CoordDataset(data.Dataset):
             img = img.rotate(r)
             pts = coordRotate(pts, r, ori_size)
         img = img.resize((input_size[0], input_size[1]))
-        ppts = pts * float(input_size[0]) / float(ori_size)
+        tpts = pts * float(input_size[0]) / float(ori_size)
         img = np.asarray(img)
 
         # show img
@@ -109,14 +109,14 @@ class CoordDataset(data.Dataset):
         target = np.zeros((n_parts, input_size[0], input_size[1]))
         for i in range(n_parts):
             # 逐个坐标点遍历
-            if ppts[i, 1] > 0:
-                target[i] = generate_target(target[i], ppts[i] - 1, self.sigma,
+            if tpts[i, 1] > 0:
+                target[i] = generate_target(target[i], tpts[i] - 1, self.sigma,
                                             label_type=self.label_type)
 
         # meta = {ori size, study uid, series uid, instance uid, path, instance number}
         meta = {'ori': ori_size, 'study_uid': middle_frame.study_uid, 'series_uid': middle_frame.series_uid,
                 'instance_uid': middle_frame.instance_uid, 'path': middle_frame.file_path, 'pts': torch.Tensor(pts),
-                'instance_number': middle_frame.instance_number}
+                'ps': middle_frame.pixel_spacing, 'tpts': tpts, 'instance_number': middle_frame.instance_number}
 
         return img, target, meta
 
@@ -167,6 +167,58 @@ class TestDataset(data.Dataset):
         return img, meta, np.array(middle_frame.image)
 
 
+class PrepareCropData:
+    def __init__(self, data_path, annotation_path):
+        pkl_path = ['./studies.pkl', './annotation.pkl',
+                    './vertebra.pkl', './disc.pkl']
+        if os.path.exists(pkl_path[2]) and os.path.exists(pkl_path[3]):
+            self.vertebra_data = joblib.load(pkl_path[2])
+            self.disc_data = joblib.load(pkl_path[3])
+        else:
+            self.middle_list = []
+            if not (os.path.exists(pkl_path[0]) and os.path.exists(pkl_path[1])):
+                self.studies, self.annotation, _ = construct_studies(data_path, annotation_path)
+                joblib.dump(self.studies, pkl_path[0])
+                joblib.dump(self.annotation, pkl_path[1])
+            else:
+                self.studies = joblib.load(pkl_path[0])
+                self.annotation = joblib.load(pkl_path[1])
+            for study in self.studies.values():
+                self.middle_list.append(study.t2_sagittal_middle_frame)
+            self.vertebra_data, self.disc_data = self.get_all_item()
+            joblib.dump(self.vertebra_data, pkl_path[2])
+            joblib.dump(self.disc_data, pkl_path[3])
+
+    def get_all_item(self):
+        vertebra_data = []
+        disc_data = []
+        for middle_frame in self.middle_list:
+            annotation = self.annotation[middle_frame.study_uid, middle_frame.series_uid, middle_frame.instance_uid]
+            coord_vertebra = annotation[0][:, :2]
+            coord_disc = annotation[1][:, :2]
+            label_vertebra = annotation[0][:, 2]
+            label_disc = annotation[1][:, 2]
+            img = middle_frame.image
+            img = np.asarray(img)
+            height, width = img.shape[0], img.shape[1]
+            img = cv2.resize(img, (512, 512))
+            coord_vertebra = coord_vertebra.numpy() * [float(512) / float(width),
+                                                       float(512) / float(height)]
+            coord_disc = coord_disc.numpy() * [float(512) / float(width),
+                                               float(512) / float(height)]
+            for i, coord in enumerate(coord_vertebra):
+                crop_img = img[int(coord[1]) - 32:int(coord[1]) + 32, int(coord[0]) - 32: int(coord[0]) + 32]
+                crop_dict = {'img': crop_img, 'label': label_vertebra[i]}
+                vertebra_data.append({middle_frame.study_uid: crop_dict})
+            for i, coord in enumerate(coord_disc):
+                crop_img = img[int(coord[1]) - 32:int(coord[1]) + 32, int(coord[0]) - 32: int(coord[0]) + 32]
+                if crop_img.shape != (64, 64):
+                    continue
+                crop_dict = {'img': crop_img, 'label': label_disc[i]}
+                disc_data.append({middle_frame.study_uid: crop_dict})
+        return vertebra_data, disc_data
+
+
 class axialdataset(data.Dataset):
     """
     """
@@ -183,6 +235,7 @@ class axialdataset(data.Dataset):
             # self.data_root = cfg.DATASET.TESTROOT
 
         self.all_data_dict, self.all_data_csv = CreatAxialDataset(self.data_root_path, self.data_json_path)
+        print(self.all_data_dict)
         self.is_train = is_train
         self.transform = transform
         self.totensor = transforms.ToTensor()
@@ -272,4 +325,5 @@ class axialdataset(data.Dataset):
 
 
 if __name__ == '__main__':
-    pass
+    pre = PrepareCropData(config.trainPath, config.trainjsonPath)
+    print(pre.vertebra_data)
