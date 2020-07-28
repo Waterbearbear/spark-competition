@@ -1,7 +1,7 @@
 import torch
 import argparse
 import torch.utils.data
-from model import Model
+from coordmodel import Model
 from datasets.dataset import CoordDataset
 from PIL import Image
 import numpy as np

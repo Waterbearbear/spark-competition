@@ -3,7 +3,7 @@ import json
 import torch
 import cv2
 import numpy as np
-from model import Model
+from coordmodel import Model
 from structure import construct_studies
 from utils.imgread import get_info, dicom2array
 from datasets.dataset import TestDataset
