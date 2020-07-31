@@ -117,19 +117,25 @@ def read_annotation(path) -> Dict[Tuple[str, str, str], Tuple[torch.Tensor, torc
                     diseases = point['tag']['vertebra']
 
                     vertebra_label[position, :2] = torch.tensor(point['coord'])
-                    for disease in diseases.split(','):
-                        if disease in SPINAL_VERTEBRA_DISEASE_ID:
-                            disease = SPINAL_VERTEBRA_DISEASE_ID[disease]
-                            vertebra_label[position, 2] = disease
+                    if diseases != None:
+                        for disease in diseases.split(','):
+                            if disease in SPINAL_VERTEBRA_DISEASE_ID:
+                                disease = SPINAL_VERTEBRA_DISEASE_ID[disease]
+                                vertebra_label[position, 2] = disease
+                    else:
+                        vertebra_label[position, 2] = -1
                 elif identification in SPINAL_DISC_ID:
                     position = SPINAL_DISC_ID[identification]
                     diseases = point['tag']['disc']
 
                     disc_label[position, :2] = torch.tensor(point['coord'])
-                    for disease in diseases.split(','):
-                        if disease in SPINAL_DISC_DISEASE_ID:
-                            disease = SPINAL_DISC_DISEASE_ID[disease]
-                            disc_label[position, 2] = disease
+                    if diseases != None:
+                        for disease in diseases.split(','):
+                            if disease in SPINAL_DISC_DISEASE_ID:
+                                disease = SPINAL_DISC_DISEASE_ID[disease]
+                                disc_label[position, 2] = disease
+                    else:
+                        disc_label[position, 2] = -1
                 elif identification in non_hit_count:
                     non_hit_count[identification] += 1
                 else:

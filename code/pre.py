@@ -37,8 +37,20 @@ if __name__ == '__main__':
         model.set_pre_input(data[0], data[1])
         model.test()
         _, preCoord = model.getPreCoord()
+        vertebra_coord = preCoord[:5]
+        disc_coord = preCoord[5:]
+        preCoord = []
+        j, k = 0, 0
+        for i in range(11):
+            if i % 2 == 0:
+                preCoord.append(disc_coord[j])
+                j += 1
+            else:
+                preCoord.append(vertebra_coord[k])
+                k += 1
         annotation = {"annotator": 13, "data": {"point": []}}
         for j, coord in enumerate(preCoord):
+            coord = [int(coord[0]), int(coord[1])]
             point = {"coord": [int(coord[0]), int(coord[1])],
                      'tag': {'identification': ide[j], 'disc' if j % 2 == 0 else 'vertebra': None},
                      'zIndex': int(meta['instance_number'][0]) - 1}
@@ -47,13 +59,13 @@ if __name__ == '__main__':
                      "annotation": [annotation]}
         test_list = {"studyUid": meta['study_uid'][0], "data": [data_list]}
         json_list.append(test_list)
-        point_size = 1
-        point_color = (0, 0, 255)  # BGR
-        thickness = 4  # 可以为 0 、4、8
-        ori_img = cv2.merge([ori_img, ori_img, ori_img])
-        for coord in preCoord:
-            coord = (int(coord[0]), int(coord[1]))
-            cv2.circle(ori_img, coord, point_size, point_color, thickness)
+        # point_size = 1
+        # point_color = (0, 0, 255)  # BGR
+        # thickness = 4  # 可以为 0 、4、8
+        # ori_img = cv2.merge([ori_img, ori_img, ori_img])
+        # for coord in preCoord:
+        #     coord = (int(coord[0]), int(coord[1]))
+        #     cv2.circle(ori_img, coord, point_size, point_color, thickness)
         cv2.imshow('', ori_img)
         cv2.waitKey(0)
     print(json_list)

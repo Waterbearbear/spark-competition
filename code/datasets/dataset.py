@@ -123,7 +123,7 @@ class CoordDataset(data.Dataset):
 
 class TestDataset(data.Dataset):
     def __init__(self, test_path):
-        pkl_path = test_path + '/test.pkl'
+        pkl_path = './test.pkl'
         if not os.path.exists(pkl_path):
             self.test_studies = construct_studies(test_path)
             joblib.dump(self.test_studies, pkl_path)
@@ -192,13 +192,14 @@ class PrepareCropData:
     def get_all_item(self):
         vertebra_data = {}
         disc_data = {}
-        vertebra_map = ['T12', 'L1', 'L2', 'L3', 'L4', 'L5']
+        vertebra_map = ['L1', 'L2', 'L3', 'L4', 'L5']
         disc_map = ['T12-L1', 'L1-L2', 'L2-L3', 'L3-L4', 'L4-L5', 'L5-S1']
         for iter, middle_frame in enumerate(self.middle_list):
             vertebra_data[middle_frame.study_uid] = {}
             disc_data[middle_frame.study_uid] = {}
             annotation = self.annotation[middle_frame.study_uid, middle_frame.series_uid, middle_frame.instance_uid]
             coord_vertebra = annotation[0][:, :2]
+            print(coord_vertebra.shape)
             coord_disc = annotation[1][:, :2]
             label_vertebra = annotation[0][:, 2]
             label_disc = annotation[1][:, 2]
@@ -214,17 +215,19 @@ class PrepareCropData:
                                                float(512) / float(height)]
             #  crop_size = (48, 96)
             for i, coord in enumerate(coord_vertebra):
+                print(i)
                 crop_img = img[int(coord[1]) - 24:int(coord[1]) + 24, int(coord[0]) - 48: int(coord[0]) + 48]
+                print(crop_img.shape)
                 if crop_img.shape != (48, 96):
-                    continue
+                    cv2.imshow('', img)
+                    cv2.waitKey(0)
                 crop_dict = {'img': crop_img, 'label': label_vertebra[i]}
                 vertebra_data[middle_frame.study_uid][vertebra_map[i]] = crop_dict
             for i, coord in enumerate(coord_disc):
                 crop_img = img[int(coord[1]) - 24:int(coord[1]) + 24, int(coord[0]) - 48: int(coord[0]) + 48]
-                # cv2.imshow('', crop_img)
-                # cv2.waitKey(0)
                 if crop_img.shape != (48, 96):
-                    continue
+                    cv2.imshow('', img)
+                    cv2.waitKey(0)
                 crop_dict = {'img': crop_img, 'label': label_disc[i]}
                 disc_data[middle_frame.study_uid][disc_map[i]] = crop_dict
         # vertebra_data = {study_uid: {'T12': {'img': np.array, 'label': tensor}, ...}, ...}
@@ -339,4 +342,5 @@ class axialdataset(data.Dataset):
 
 if __name__ == '__main__':
     pre = PrepareCropData(config.trainPath, config.trainjsonPath)
+    # pre = PrepareCropData(r'F:\DATA\Lumbar\lumbar_testA50', r'E:\Code\spark-competition\code\test_new.json')
     # print(pre.vertebra_data)
