@@ -234,6 +234,7 @@ class PrepareCropData:
         # disc_data = {study_uid: {'T12-L1': {'img': np.array, 'label': tensor}, ...}, ...}
         return vertebra_data, disc_data
 
+    
 
 class axialdataset(data.Dataset):
     """
@@ -339,6 +340,201 @@ class axialdataset(data.Dataset):
         else:
             return img, label, disc_path, identification, studyID
 
+  
+class SagAxialDataset(data.Dataset):
+    """
+    """
+    def __init__(self, data_root_path, data_json_path, part,is_train=True, transform=None):
+        # data_root_path : 数据所在的路径
+        # data_json_path : 数据标记所在路径
+        # pkl_path       : sag切下来的锥体和椎间盘的pkl文件路径
+        # part           : 当前数据集用于提取"vertebra" 还是 "disc"
+        # is_train       : "all",True,False. 用于表示训练还是测试状态
+        # transform      : 数据增强
+
+        self.disc_name = []
+        self.vertebra_name = []
+        # specify annotation file for dataset
+        self.data_root_path = data_root_path
+        self.data_json_path = data_json_path
+
+        self.is_train = is_train
+        self.part     = part
+        self.vertebra_list = ['L1', 'L2', 'L3', 'L4', 'L5']
+        self.disc_list = ['T12-L1', 'L1-L2', 'L2-L3', 'L3-L4', 'L4-L5', 'L5-S1']
+
+
+        # self.csv_file = cfg.DATASET.TESTSET
+        # self.data_root = cfg.DATASET.TESTROOT
+
+        self.all_axialdata_dict,self.all_axialdata_csv = CreatAxialDataset(self.data_root_path,self.data_json_path,is_train = self.is_train)
+        sag_train = PrepareCropData(config.trainPath, config.trainjsonPath, "train")
+        sag_val = PrepareCropData(config.valPath, config.valjsonPath, "val")
+
+        self.sag_total = copy.deepcopy(sag_train)
+
+        # print(type(pre_train.disc_data))
+
+        for key, study in sag_val.disc_data.items():
+            self.sag_total.disc_data[key] = study
+
+        for key, study in sag_val.vertebra_data.items():
+            self.sag_total.vertebra_data[key] = study
+
+
+        if self.part == 'vertebra':
+
+            self.part_data_csv = self.all_axialdata_csv.loc[self.all_axialdata_csv['identification'].isin(self.vertebra_list), :]
+        elif self.part == 'disc':
+            self.part_data_csv = self.all_axialdata_csv.loc[self.all_axialdata_csv['identification'].isin(self.disc_list), :]
+        else:
+            print("part value should be  'disc' or 'vertebra' ")
+            raise ValueError
+
+        self.part_data_csv.reset_index(drop = True,inplace = True)
+        self.part_data_dict = self.part_data_csv.to_dict(orient='records')
+        self.map = {'v1': 0, 'v2': 1, 'v3': 2, 'v4': 3, 'v5': 4}
+        self.transform = transform
+        self.totensor = transforms.ToTensor()
+        # self.data_root = cfg.DATASET.ROOT
+        self.input_size = config.input_size
+        self.num_classes = config.num_classes
+
+        self.counter = [0,0,0,0,0]
+
+    def __len__(self):
+        return len(self.part_data_csv)
+
+    def __getitem__(self, idx):
+        # idx 为图片索引
+
+        # print(type(img))
+        # print(img.shape)
+
+        # print(self.all_data_dict)
+
+        if idx == 631:
+            pass
+            print(idx)
+
+        disc_path = self.part_data_dict[idx]['disc_dcmPath']
+        identification = self.part_data_dict[idx]['identification']
+        studyID = self.part_data_dict[idx]['studyUid']
+        label = self.part_data_dict[idx]['label']  # 获取图片的标签
+        self.axial_img_dir = self.part_data_dict[idx]['dcmPath']  # 获取图片的地址
+
+
+
+        # print(studyID)
+        # print(identification)
+
+        try:
+            axial_img = dicom2array(self.axial_img_dir)  # 获取具体的图片数据，二维数据
+        except:
+            print("read dirty data: ",self.axial_img_dir)
+
+        if self.part == 'vertebra':
+            sag_img = self.sag_total.vertebra_data[studyID][identification]['img']
+        elif self.part == 'disc':
+            sag_img = self.sag_total.disc_data[studyID][identification]['img']
+        else:
+            raise ValueError
+
+
+
+        # print("idx: %d"%idx)
+        # print(axial_img)
+        # print("shape before:",axial_img.shape)
+        # print(self.axial_img_dir)
+        # print(studyID)
+
+
+
+        # 矢状面的路径
+
+
+
+        # 有些label为两个值,选择前一个值
+        if self.is_train:
+            if ',' in label :
+                label = label.split(',')[0]
+            label = self.map[label]
+
+
+        axial_height, axial_weight = axial_img.shape[0], axial_img.shape[1]
+        sag_height , sag_weight    = sag_img.shape[0] , sag_img.shape[1]
+        # print(img.shape)
+        # print("before: ", img.shape)
+
+        # 图像裁剪
+        if axial_weight > axial_height:
+
+            extra_weight = axial_weight - axial_height
+            crop_left = int(extra_weight / 2) - 1
+            if crop_left < 0:
+                crop_left = 0
+
+            crop_right = int(extra_weight / 2) + axial_height - 1
+
+
+            axial_img = axial_img[:, crop_left:crop_right]
+
+
+        elif axial_height > axial_weight:
+            extra_height = axial_height - axial_weight
+            crop_up = int(extra_height / 2) - 1
+            if crop_up < 0:
+                crop_up = 0
+            crop_down = int(extra_height / 2) + axial_weight - 1
+            axial_img = axial_img[crop_up:crop_down, :]
+
+
+
+        # print("shape after:",axial_img.shape)
+        #
+        # print("sag img:")
+        # print(sag_img)
+        # print(sag_img.shape)
+
+        axial_img = Image.fromarray(axial_img)
+        sag_img   = Image.fromarray(sag_img)
+
+        if sag_weight > sag_height:
+
+            self.padding = transforms.Pad(padding = (0,int((sag_weight - sag_height)/2)))
+
+        else:
+            self.padding = transforms.Pad(padding= (int((sag_height - sag_weight)/2) , 0) )
+
+        sag_img = self.padding(sag_img)
+
+        # print("shape PIL")
+        # print(axial_img)
+
+
+        # axial_img = axial_img.resize((self.input_size[0], self.input_size[1]))
+        # print(img.size)
+
+
+        # shape_list.append(img.shape)
+
+        if self.transform is not None:
+            axial_img = self.transform(axial_img)
+            sag_img = self.transform(sag_img)
+
+
+
+        # img = self.totensor(img)
+
+        # print("self.img_dir: ",self.img_dir)
+        # print("label: ",label)
+
+        # img = img.unsqueeze(0)
+        # print("type label: ",type(label))
+
+
+        return axial_img,sag_img,label,disc_path,identification,studyID
+        
 
 if __name__ == '__main__':
     pre = PrepareCropData(config.trainPath, config.trainjsonPath)
