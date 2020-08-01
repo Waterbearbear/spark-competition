@@ -3,6 +3,8 @@ import torch.nn as nn
 from utils.init_weights import init_weights
 
 
+
+
 class DoubleConv(nn.Module):
     def __init__(self, in_ch, out_ch):
         super(DoubleConv, self).__init__()
@@ -1047,3 +1049,80 @@ class ModelCountception_v2(nn.Module):
 
     def name(self):
         return 'countception_VL_DL'
+    
+
+class DoubleNet(nn.Module):
+    def __init__(self, modelname, num_classes, pretrained_path=None):
+        #  modelname : backbone的名字
+        #  num_classes: 最终输出的类别数
+        #
+        
+        # sag,axl图 分别输入至两个ResNet18模型中
+        # 两个ResNet的最后一层卷积层输出 经过global pooling之后
+        # 两个输出在通道上concat在一起,输入至一个fc层得到最终结果
+       
+        super(DoubleNet, self).__init__()
+
+        self.pretrained_path = pretrained_path
+        self.modelname = modelname
+        self.num_classes = num_classes
+
+        if self.modelname == "ResNet18":
+            ori_net = resnet18(pretrained = True)
+        else:
+            ori_net = None
+            raise NotImplementedError
+
+        self.fc_in_features = ori_net.fc.in_features
+
+        self.net_sag = nn.Sequential(*list(ori_net.children())[:-1])
+        self.net_axl = nn.Sequential(*list(ori_net.children())[:-1])
+
+
+        self.net_sag[0] = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        self.net_axl[0] = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+
+        self.fc = nn.Linear(self.fc_in_features * 2,self.num_classes)
+        self.dropout = nn.Dropout(0.2)
+        self.softmax = nn.Softmax(dim = 1)
+
+        pretrain_dict = {}
+
+
+        for key in ['sag','axl']:
+            if pretrained_path == None:
+                print("Loading ImageNet weights")
+                pretrain_dict[key] = ori_net.state_dict().copy()
+            else:
+                pretrain_dict[key] = torch.load(self.pretrained_path[key])
+
+            if key == 'sag':
+                model_dict = self.net_sag.state_dict()
+
+                pretrain_dict[key] = {k: v for k, v in pretrain_dict[key].items() if k in model_dict and k != "conv1.weight"}
+                model_dict.update(pretrain_dict[key])
+                self.net_sag.load_state_dict(model_dict)
+            else:
+                model_dict = self.net_axl.state_dict()
+
+                pretrain_dict[key] = {k: v for k, v in pretrain_dict[key].items() if
+                                      k in model_dict and k != "conv1.weight"}
+                model_dict.update(pretrain_dict[key])
+                self.net_axl.load_state_dict(model_dict)
+
+        del ori_net
+
+
+    def forward(self, sag_data,axial_data):
+
+        sag_output   = self.net_sag(sag_data)
+        axial_output = self.net_axl(axial_data)
+
+        concat_output = torch.cat([sag_output,axial_output],1)
+        concat_output = torch.squeeze(concat_output)
+
+        logit = self.fc(concat_output)
+        logit = self.dropout(logit)
+        # x = self.net(x)
+
+        return logit
