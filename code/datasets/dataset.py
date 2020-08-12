@@ -11,6 +11,8 @@ import torch
 import torch.utils.data as data
 import torch.nn.functional as F
 import pandas as pd
+from albumentations import CLAHE, Compose, Normalize, HueSaturationValue
+from albumentations.pytorch.transforms import ToTensor
 from PIL import Image, ImageFile
 import numpy as np
 import joblib
@@ -32,8 +34,9 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 class CoordDataset(data.Dataset):
-    def __init__(self, data_path, annotation_path, is_flip=False, is_rot=False, rot_factor=45):
-        pkl_path = [data_path + '/studies.pkl', data_path + '/annotation.pkl']
+    def __init__(self, data_path, annotation_path, is_flip=False, is_rot=False, rot_factor=45, is_train=True):
+        pkl_path = ['./datasets/coord/studies_train.pkl', './datasets/coord/annotation_train.pkl'] if is_train else \
+            ['./datasets/coord/studies_val.pkl', './datasets/coord/annotation_val.pkl']
         if not (os.path.exists(pkl_path[0]) and os.path.exists(pkl_path[1])):
             self.studies, self.annotation, _ = construct_studies(data_path, annotation_path)
             joblib.dump(self.studies, pkl_path[0])
@@ -49,8 +52,18 @@ class CoordDataset(data.Dataset):
         self.is_flip = is_flip
         self.is_rot = is_rot
         self.rot_factor = rot_factor
+        self.is_train = is_train
         self.mean = np.array([0.485], dtype=np.float32)
         self.std = np.array([0.229], dtype=np.float32)
+        self.train_transformation = Compose([
+            # HueSaturationValue(hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, always_apply=False, p=0.5),
+            Normalize(),
+            ToTensor()
+        ])
+        self.val_transformation = Compose([
+            Normalize(),
+            ToTensor()
+        ])
 
     def __len__(self):
         return len(self.studies)
@@ -87,8 +100,8 @@ class CoordDataset(data.Dataset):
             pts = coordRotate(pts, r, ori_size)
         img = img.resize((input_size[0], input_size[1]))
         tpts = pts * float(input_size[0]) / float(ori_size)
-        img = np.asarray(img)
-
+        img = np.asarray(img, dtype=np.uint8)
+        img = cv2.merge([img, img, img])
         # show img
         # point_size = 1
         # point_color = (0, 0, 255)  # BGR
@@ -100,9 +113,13 @@ class CoordDataset(data.Dataset):
         # cv2.waitKey(0)
 
         # normalization img
-        img = (img / 255.0 - self.mean) / self.std
-        img = torch.Tensor(img)
-        img = img.unsqueeze(0)
+        # img = (img / 255.0 - self.mean) / self.std
+        # img = torch.Tensor(img)
+        # img = img.unsqueeze(0)
+        if self.is_train:
+            img = self.train_transformation(image=img)['image']
+        else:
+            img = self.val_transformation(image=img)['image']
         n_parts = pts.shape[0]
 
         # generation heat_map
@@ -134,6 +151,11 @@ class TestDataset(data.Dataset):
             self.test_list.append(study.t2_sagittal_middle_frame)
         self.mean = np.array([0.485], dtype=np.float32)
         self.std = np.array([0.229], dtype=np.float32)
+        self.transformation = Compose([
+            # CLAHE(always_apply=True),
+            Normalize(),
+            ToTensor()
+        ])
 
     def __len__(self):
         return len(self.test_studies)
@@ -158,9 +180,11 @@ class TestDataset(data.Dataset):
         img = Image.fromarray(img)
         img = img.resize((input_size[0], input_size[1]))
         img = np.asarray(img)
-        img = (img / 255.0 - self.mean) / self.std
-        img = torch.Tensor(img)
-        img = img.unsqueeze(0)
+        img = cv2.merge([img, img, img])
+        img = self.transformation(image=img)['image']
+        # img = (img / 255.0 - self.mean) / self.std
+        # img = torch.Tensor(img)
+        # img = img.unsqueeze(0)
         meta = {'ori': ori_size, 'study_uid': middle_frame.study_uid, 'series_uid': middle_frame.series_uid,
                 'instance_uid': middle_frame.instance_uid, 'path': middle_frame.file_path,
                 'instance_number': middle_frame.instance_number}

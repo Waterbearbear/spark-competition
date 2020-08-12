@@ -28,14 +28,14 @@ class Model:
         self.isTrain = opt.isTrain
         self.Tensor = torch.cuda.FloatTensor if self.gpu_ids else torch.Tensor
         self.save_dir = os.path.join(opt.checkpoints_dir)
-        self.inputImg = self.Tensor(opt.batchsize, 1, 256, 256)
+        self.inputImg = self.Tensor(opt.batchsize, 3, 256, 256)
         self.target = self.Tensor(opt.batchsize, 1, 256, 256)
         self.preCoord = []
-        self.net = UNet_3Plus(in_channels=1, n_classes=11).cuda()
+        self.net = UNet_3Plus(in_channels=3, n_classes=11).cuda()
         self.loss_fn = nn.MSELoss()
         if self.isTrain:
             self.optimizer = torch.optim.Adam(self.net.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-            self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.8)
+            self.scheduler = lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.9)
             if opt.continue_train:
                 self.load_network(self.net, 150)
         else:
@@ -68,6 +68,26 @@ class Model:
         self.preHeatmap = self.pre.cpu().detach().numpy()
         self.tarHeatmap = self.target.cpu().detach().numpy()
         return self.tarHeatmap, self.preHeatmap
+
+    def get_preds(self, scores):
+        """
+        get predictions from score maps in torch Tensor
+        return type: torch.LongTensor
+        """
+        assert scores.dim() == 4, 'Score maps should be 4-dim'
+        maxval, idx = torch.max(scores.view(scores.size(0), scores.size(1), -1), 2)
+
+        maxval = maxval.view(scores.size(0), scores.size(1), 1)
+        idx = idx.view(scores.size(0), scores.size(1), 1) + 1
+
+        preds = idx.repeat(1, 1, 2).float()
+
+        preds[:, :, 0] = (preds[:, :, 0] - 1) % scores.size(3) + 1
+        preds[:, :, 1] = torch.floor((preds[:, :, 1] - 1) / scores.size(3)) + 1
+
+        pred_mask = maxval.gt(0).repeat(1, 1, 2).float()
+        preds *= pred_mask
+        return preds
 
     def getPreCoord(self):
         self.preHeatmap = self.pre.cpu().detach().numpy()
