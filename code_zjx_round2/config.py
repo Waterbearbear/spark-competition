@@ -2,20 +2,22 @@
 
 
 #train parameters
-trainPath = r'..\data\DatasetA\train\lumbar_train150'
-trainjsonPath = r'..\data\DatasetA\train\lumbar_train150_annotation.json'
+trainPath = r'/tcdata/round2train'
+trainjsonPath = r'/tcdata/round2train_checked.json'
 
 
-valPath = r'..\data\DatasetA\train\lumbar_train51'
-valjsonPath = r'..\data\DatasetA\train\lumbar_train51_annotation.json'
+# valPath = r'/tcdata/rou'
+# valjsonPath = r'..\data\DatasetA\train\lumbar_train51_annotation.json'
 
+## 现只用round2trian,准备实现两个融合
+train_allPath = r'/tcdata/round2train'
+train_alljsonPath = r'/tcdata/round2train_checked.json'
 
-train_allPath = None
-train_alljsonPath = None
+testPath = r'/tcdata/round2test'
+testMapjsonPath = r'/tcdata/round2_series_map.json'
 
-testPath = r'..\data\DatasetB\test\lumbar_testB50'
-testMapjsonPath = r'..\data\DatasetB\test\testB50_series_map.json'
-testjsonPath = r'..\data\DatasetB\test\test_B_2.json'
+##keypoint detection 阶段结束后,生成的json
+testjsonPath = r'/result_temp.json'
 
 test_Dict_Path = r'..\data\External\point_to_axial_dict.npy'
 test_csv_Path = r'..\data\External\point_to_axial.csv'

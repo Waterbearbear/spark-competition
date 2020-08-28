@@ -515,7 +515,6 @@ class Axial_Testset(data.Dataset):
 class SagAxialDataset(data.Dataset):
     """
     """
-
     def __init__(self, data_root_path, data_json_path, part, is_train=True, transform=None):
         # data_root_path : 数据所在的路径
         # data_json_path : 数据标记所在路径
@@ -542,22 +541,25 @@ class SagAxialDataset(data.Dataset):
 
         self.all_axialdata_dict, self.all_axialdata_csv = CreatAxialDataset(self.data_root_path, self.data_json_path,
                                                                             is_train=self.is_train)
+
         # self.test_dict = np.load(self.test_dict_path,allow_pickle = True)
         # self.test_csv  = pd.read_csv(self.test_csv_path)
 
         if is_train:
             sag_train = PrepareCropData(config.trainPath, config.trainjsonPath, "train")
-            sag_val = PrepareCropData(config.valPath, config.valjsonPath, "val")
+            ##将val注释了 , 目前第一轮还用不到
+
+            # sag_val = PrepareCropData(config.valPath, config.valjsonPath, "val")
 
             self.sag_total = copy.deepcopy(sag_train)
 
             # print(type(pre_train.disc_data))
 
-            for key, study in sag_val.disc_data.items():
-                self.sag_total.disc_data[key] = study
-
-            for key, study in sag_val.vertebra_data.items():
-                self.sag_total.vertebra_data[key] = study
+            # for key, study in sag_val.disc_data.items():
+            #     self.sag_total.disc_data[key] = study
+            #
+            # for key, study in sag_val.vertebra_data.items():
+            #     self.sag_total.vertebra_data[key] = study
 
         else:
             self.sag_total = PrepareCropData(config.testPath, config.testjsonPath, "test")

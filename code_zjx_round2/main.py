@@ -24,13 +24,10 @@ from zoo.pipeline.api.keras.optimizers import Adam
 from zoo.orca.learn.pytorch import Estimator
 
 
-
-
 ide = ['T12-L1', 'L1', 'L1-L2',
        'L2', 'L2-L3', 'L3',
        'L3-L4', 'L4', 'L4-L5',
        'L5', 'L5-S1']
-
 
 def MergeDataJson():
     pd.set_option('expand_frame_repr', False)
@@ -159,17 +156,24 @@ if __name__ == "__main__":
     test_all_axial_Path = os.path.join(config.external_data_path, 'dcm_info_test.csv')
 
     ###创建train 150例和val 51例文件的csv和dict 用于dataset
+    ## 创建round2的训练用例,用训练用力作五折交叉验证
+
     CreatAxialDataset(dicomPath=config.trainPath, jsonPath=config.trainjsonPath, is_train=True)
-    CreatAxialDataset(dicomPath=config.valPath, jsonPath=config.valjsonPath, is_train=True)
+    # CreatAxialDataset(dicomPath=config.valPath, jsonPath=config.valjsonPath, is_train=True)
 
     ### 将train和val合并,做5折交叉验证
     ### 这个是将初赛的train150 和 train51 进行合并
     ### TO DO :
 
-    MergeDataJson()
+    ## 该方法日后实现, 将round1 的train val 和 round2的train 融合
+    # MergeDataJson()
+
 
     ###  用AZ框架进行训练  训练开始  ########
-    train_axial.TrainAxialModelinSpark()
+    ## trained_model_dict含有两个模型
+    ## trained_model_dict['vertebra'] 和 trained_model_dict['disc']
+
+    trained_model_dict = train_axial.TrainAxialModelinSpark()
 
 
 

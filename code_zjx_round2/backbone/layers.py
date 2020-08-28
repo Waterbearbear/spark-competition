@@ -914,25 +914,8 @@ class DoubleNet(nn.Module):
         concat_output = torch.squeeze(concat_output)
 
         logit = self.dropout(concat_output)
-        logit = self.fc(concat_output)
+        logit = self.fc(logit)
 
         # x = self.net(x)
 
         return logit
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

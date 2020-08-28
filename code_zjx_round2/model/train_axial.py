@@ -543,10 +543,10 @@ def TrainAxialModelinSpark():
             modelname = config.model_name
             if parse == "vertebra":
                 model = DoubleNet(modelname=modelname, num_classes=config.num_classes[0],
-                                  pretrained_path=config.pretrainedPath[0])
+                                  pretrained_path=config.pretrainedPath[0],bf16 = config.bf16)
             else:
                 model = DoubleNet(modelname=modelname, num_classes=config.num_classes[1],
-                                  pretrained_path=config.pretrainedPath[1])
+                                  pretrained_path=config.pretrainedPath[1],bf16 = config.bf16)
 
             print(model.net_sag)
 
@@ -586,7 +586,7 @@ def TrainAxialModelinSpark():
 
             device = torch.device('cpu')
 
-            estimator = Estimator.from_torch(model=mdoel, loss=nn.CrossEntropyLoss(weight=weights),
+            estimator = Estimator.from_torch(model=model, loss=nn.CrossEntropyLoss(weight=weights),
                                              optimizer=Adam(lr=config.lr), backend="bigdl")
 
             estimator.fit(data=train_dataloader, epochs=config.axial_epochs)
