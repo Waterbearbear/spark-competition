@@ -3,45 +3,49 @@ from model import model_axial
 from backbone import layers
 import config
 import os
-from datasets import dataset, transform
+from datasets import dataset , transform
 import torch.nn.functional as F
 import numpy as np
 from sklearn.metrics import classification_report
 from utils import util
 import torch.nn as nn
-import datetime
+
 import pandas as pd
 
 
-def final_test(test_dataloader, model, testjson_path, test_json):
+
+
+def final_test(test_dataloader,model,testjson_path,test_json):
+
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # map = {'v1': 0, 'v2': 1, 'v3': 2, 'v4': 3, 'v5': 4}
-    map = ['v1', 'v2', 'v3', 'v4', 'v5']
+    map = ['v1','v2','v3','v4','v5']
 
     # test_json = pd.read_json(testjson_path)
 
     model.to(device)
-    model
+    model.cuda()
     model.eval()
 
     # print('test_dataloader',type(test_dataloader))
 
     with torch.no_grad():
-        for i, (axial_img, sag_img, label, disc_path, identification, studyID) in enumerate(test_dataloader):
+        for i,(axial_img,sag_img,label,disc_path,identification,studyID) in enumerate(test_dataloader):
 
             # img = img.repeat([1,3,1,1])
 
             axial_img = axial_img.to(device)
-            sag_img = sag_img.to(device)
+            sag_img   = sag_img.to(device)
 
-            output = model(sag_img, axial_img)
+            output = model(sag_img,axial_img)
 
             print(output)
 
             class_pred = np.squeeze(output.argmax(dim=1, keepdim=True).cpu().numpy())
 
-            # output.shape = [batch,label]
+            #output.shape = [batch,label]
             pred_one = {}
 
             for index in range(output.shape[0]):
@@ -49,9 +53,10 @@ def final_test(test_dataloader, model, testjson_path, test_json):
                 identification_one = identification[index]
                 studyID_one = studyID[index]
 
-                data = test_json.loc[test_json['studyUid'] == studyID_one, 'data']
+                data = test_json.loc[test_json['studyUid'] == studyID_one,'data']
                 data_dict = data.iloc[0]
                 annotation = data_dict[0]['annotation'][0]
+
 
                 print(studyID_one)
                 for point in annotation['data']['point']:
@@ -66,7 +71,8 @@ def final_test(test_dataloader, model, testjson_path, test_json):
                 data.iloc[0] = data_dict
                 test_json.loc[test_json['studyUid'] == studyID_one, 'data'] = data
 
-        # print(json_df)
+
+    # print(json_df)
         # 填补null值
         # for idx in test_json.index:
         #
@@ -84,18 +90,19 @@ def final_test(test_dataloader, model, testjson_path, test_json):
         #
         #     test_json.loc[idx, "data"][0]['annotation'][0] = annotation
 
-        return test_json
+
+        return  test_json
         # test_json.to_json('test_resnest50_kfold_best2.json', orient = 'records')
 
+def final_test2(test_dataloader,model,testjson_path):
 
-def final_test2(test_dataloader, model, testjson_path):
+
     pass
-
 
 # def Bagging_validate(dataloader,model):
 #     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #
-#     model
+#     model.cuda()
 #     model.eval()
 #
 #     test_loss = 0
@@ -190,14 +197,17 @@ def final_test2(test_dataloader, model, testjson_path):
 # if __name__ == "__main__":
 
 def test_classification():
+
     file_path = os.path.dirname(__file__)
 
     # print("file_path:",file_path)
     parent_path = os.path.dirname(file_path)
 
     model_name = config.model_name
-    net_num = config.num_classes
-    nets_path = os.path.join(parent_path, config.models_dir)
+    net_num    = config.num_classes
+    nets_path = os.path.join(parent_path,config.models_dir)
+
+
 
     # test_dataset = dataset_.axialdataset(data_root_path=config.testPath,
     #                                    data_json_path=config.testjsonPath,
@@ -219,17 +229,26 @@ def test_classification():
     #                                             is_train=config.isTrain,
     #                                             transform=transform.val_transforms())
 
-    vertebra_test_dataset = dataset.SagAxial_Test_Dataset(test_dict_path=config.test_Dict_Path,
-                                                          test_csv_path=config.test_csv_Path,
-                                                          part='vertebra',
-                                                          is_train=False,
-                                                          transform=transform.val_transforms())
 
-    disc_test_dataset = dataset.SagAxial_Test_Dataset(test_dict_path=config.test_Dict_Path,
-                                                      test_csv_path=config.test_csv_Path,
-                                                      part='disc',
-                                                      is_train=False,
-                                                      transform=transform.val_transforms())
+    ### SagAxial双路 ###
+    # vertebra_test_dataset = dataset.SagAxial_Test_Dataset(test_dict_path=config.test_Dict_Path,
+    #                                                     test_csv_path=config.test_csv_Path,
+    #                                                     part='vertebra',
+    #                                                     is_train=False,
+    #                                                     transform=transform.val_transforms())
+    #
+    # disc_test_dataset = dataset.SagAxial_Test_Dataset(test_dict_path=config.test_Dict_Path,
+    #                                                 test_csv_path=config.test_csv_Path,
+    #                                                 part='disc',
+    #                                                 is_train=False,
+    #                                                 transform=transform.val_transforms())
+
+    ## 仅Sag一路##
+
+    vertebra_test_dataset = dataset.CropSagDataset('disc', is_train=True, transform=transform.val_transforms())
+    disc_test_dataset = dataset.CropSagDataset('vertebra', is_train=True, transform=transform.val_transforms())
+
+
 
     ######## 单个模型 ##########
     # model = layers.ResNeSt(modelname = config.model_name,
@@ -247,46 +266,58 @@ def test_classification():
     # disc_model_path = os.path.join(config.checkpoints_dir,"%s_disc_fold0_best.pth"%config.model_name)
     # disc_model_path = os.path.join(config.checkpoints_dir,"%s_disc_fold1_best.pth"%config.model_name)
 
-    ####  Bagging_模型 ########
-    model_vertebra = model_axial.Bagging_Double_Model(model_name=config.model_name,
-                                                      net_num=config.k_fold,
-                                                      num_classes=config.num_classes[0],
-                                                      part='vertebra',
-                                                      nets_path=config.models_dir)
 
-    model_disc = model_axial.Bagging_Double_Model(model_name=config.model_name,
-                                                  net_num=config.k_fold,
-                                                  num_classes=config.num_classes[1],
-                                                  part='disc',
-                                                  nets_path=config.models_dir)
+
+
+    ####  Bagging_模型 ########
+    model_vertebra = model_axial.Bagging_Double_Model(model_name = config.model_name,
+                                                      net_num = config.k_fold,
+                                                      num_classes = config.num_classes[0],
+                                                      part = 'vertebra',
+                                                      nets_path = config.models_dir)
+
+    model_disc = model_axial.Bagging_Double_Model(model_name = config.model_name,
+                                                  net_num = config.k_fold,
+                                                  num_classes = config.num_classes[1],
+                                                  part = 'disc',
+                                                  nets_path = config.models_dir)
 
     test_json = pd.read_json(config.testjsonPath)
 
-    for phase in ["vertebra", "disc"]:
-        if phase == 'vertebra':
+    for phase in ["vertebra","disc"]:
+       if phase == 'vertebra':
 
-            # pretrain_dict = torch.load(vertebra_model_path)
-            dataset_ = vertebra_test_dataset
-            model = model_vertebra
-        else:
-            # pretrain_dict = torch.load(disc_model_path)
-            dataset_ = disc_test_dataset
-            model = model_disc
+           # pretrain_dict = torch.load(vertebra_model_path)
+           dataset_ = vertebra_test_dataset
+           model   = model_vertebra
+       else:
+           # pretrain_dict = torch.load(disc_model_path)
+           dataset_ = disc_test_dataset
+           model = model_disc
 
-        # model_dict = model.state_dict()
-        # model_dict.update(pretrain_dict)
-        # model.load_state_dict(model_dict)
+       # model_dict = model.state_dict()
+       # model_dict.update(pretrain_dict)
+       # model.load_state_dict(model_dict)
 
-        test_dataloader = torch.utils.data.DataLoader(dataset=dataset_,
-                                                      batch_size=config.batch_size,
-                                                      shuffle=False,
-                                                      pin_memory=True,
-                                                      )
 
-        test_json = final_test(test_dataloader=test_dataloader,
-                               model=model,
-                               testjson_path=config.testjsonPath,
-                               test_json=test_json)
+       test_dataloader = torch.utils.data.DataLoader(dataset=dataset_,
+                                                    batch_size=config.batch_size,
+                                                    shuffle=False,
+                                                    pin_memory=True,
+                                                    )
 
-    test_json.to_json("../submit/submit_" + datetime.datetime.now().strftime('%Y%m%d_%H%M%S') + ".json",
-                      orient='records')
+
+       test_json = final_test(test_dataloader = test_dataloader,
+                  model = model,
+                  testjson_path= config.testjsonPath,
+                  test_json = test_json)
+
+
+    test_json.to_json(config.submision_output_file_path, orient = 'records')
+
+
+
+
+
+
+

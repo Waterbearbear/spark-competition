@@ -146,7 +146,6 @@ def ListSecondMinIndex(lt):
     return i
 
 
-
 def PointToPointDistance(point1,point2):
 
     # 计算两点间距离
@@ -154,7 +153,6 @@ def PointToPointDistance(point1,point2):
     # point2 = np.array([x2,y2,z2])
 
     return np.square(point1 - point2).sum()
-
 
 
 def PointToSurfaceDistance(normal_vector,point_in_surface,point_outside):
@@ -205,12 +203,15 @@ def CaculateDisc3DCoordinate(ImagePosition,Disc_landmark,spacing,vector_x,vector
 
 
     Disc_landmark_3DCoordinate = ImagePosition + vector_x * (spacing[0] * Disc_landmark[0]) + vector_y * (spacing[1] * Disc_landmark[1])
-
-
-
     return Disc_landmark_3DCoordinate
 
+
+
 def ExtractSattInfo(dicomPath,jsonPath,is_train):
+
+    ##通过原始json,提取对应的矢状图dcm信息
+    ##并保存在externaldata/result_train.npy 中
+
 
     print(dicomPath)
     if is_train:
@@ -277,6 +278,7 @@ def ExtractSattInfo(dicomPath,jsonPath,is_train):
 def CreateAxialCsv(dicomPath,is_train = True):
 
     #取出数据集中所有的Axial data 生成一个CSV
+    #并保存成dcm_info_train.csv 和 dcm_info_train.npy
 
     if is_train:
         path = "train" if "150" in dicomPath else "val"
@@ -290,16 +292,26 @@ def CreateAxialCsv(dicomPath,is_train = True):
     # 切片图：以上 +  0028|0010 rows;0028|0011 columns
 
     # ["检查实例号：唯一标记不同检查的号码.", "序列实例号：唯一标记不同序列的号码.", "SOP实例"]
-    tag_list = ['0020|000d', '0020|000e', '0008|0018', '0020|0032', '0020|0037', '0028|0030', '0028|0010', '0028|0011']
+    tag_list = ['0020|000d', '0020|000e', '0008|0018', '0020|0032', '0020|0037', '0028|0030', '0028|0010', '0028|0011','0008|103e','0018|0088']
+
+    series_list = []
+
     dcm_info = pd.DataFrame(columns=('dcmPath', 'studyUid', 'seriesUid', 'instanceUid'))
+
     for dcm_path in dcm_paths:
         try:
-            print("try: ", dcm_path,end='')
-            studyUid, seriesUid, instanceUid, ImagePosition, ImageOrientation, pixelspacing, Rows, Columns = dicom_metainfo(
+            print("try: ", dcm_path)
+            studyUid, seriesUid, instanceUid, ImagePosition, ImageOrientation, pixelspacing, Rows, Columns ,SeriesDescription,SpacingBetweenSlices = dicom_metainfo(
                 dcm_path, tag_list)
 
-            if IsAxial(ImageOrientation):
-                print('Is Axial')
+
+            print(type(SeriesDescription))
+            series_list.append(SeriesDescription)
+            SpacingBetweenSlices = np.array(SpacingBetweenSlices,np.float)
+
+
+            if IsAxial(ImageOrientation) and SeriesDescription not in config.SeriseDescription_dirtycase and SpacingBetweenSlices > 0:
+                # print('Is Axial!SeriesDescription: ',SeriesDescription)
                 row = pd.Series(
                     {'dcmPath': dcm_path, 'studyUid': studyUid, 'seriesUid': seriesUid, 'instanceUid': instanceUid,
                      'ImagePosition': ImagePosition, 'ImageOrientation': ImageOrientation, 'pixelspacing': pixelspacing,
@@ -310,11 +322,49 @@ def CreateAxialCsv(dicomPath,is_train = True):
             print("except: ", dcm_path)
             continue
 
-    print(path)
+    # print(path)
+
+    series_list_set = set(series_list)
+    print(series_list_set)
 
     np.save(os.path.join(config.external_data_path,'dcm_info_%s.npy'%path),dcm_info.to_dict(orient= 'records'))
     dcm_info.to_csv(os.path.join(config.external_data_path,'dcm_info_%s.csv'%path))
 
+
+def CreatCropSagDataset(croppeddata_total,part:str):
+
+    sag_info = pd.DataFrame(columns=('studyUid', 'identification', 'img','label'))
+
+    if part == "disc":
+
+        for key, study in croppeddata_total.disc_data.items():
+
+            for identification,point in study.items():
+
+                sag_row = pd.Series(
+                    {'studyUid':key,'identification':identification,
+                     'img':point['img'],'label':point['label'].data})
+
+                sag_info = sag_info.append(sag_row,ignore_index = True)
+
+    elif part == "vertebra":
+        for key,study in croppeddata_total.vertebra_data.items():
+
+            for identification,point in study.items():
+                sag_row = pd.Series(
+                    {'studyUid': key, 'identification': identification,
+                     'img': point['img'], 'label': point['label'].data})
+
+                sag_info = sag_info.append(sag_row, ignore_index=True)
+
+
+
+    sag_info_dict = sag_info.to_dict(orient = 'records')
+    # np.save(os.path.join(config.external_data_path, 'crop_sag_%s.npy' % part),
+    #         sag_info_dict)
+    # sag_info.to_csv(os.path.join(config.external_data_path, 'crop_sag_%s.csv' % part))
+
+    return sag_info_dict
 
 
 
@@ -327,6 +377,8 @@ def CreatAxialDataset(dicomPath,jsonPath,is_train = True):
         path = "train" if "150" in dicomPath else "val"
     elif is_train == False:
         path = "test"
+
+
     if not os.path.exists(os.path.join(config.external_data_path,"axial_info_%s.npy"%path)):
 
         ExtractSattInfo(dicomPath ,jsonPath,is_train = is_train)
@@ -341,19 +393,22 @@ def CreatAxialDataset(dicomPath,jsonPath,is_train = True):
         pre_axial_data = None
 
         for study in result:
+            #逐个study进行遍历
             # print(study['annotation'][0]['data'])
             # break
 
             mask = []
             for i,axial in enumerate(axial_result):
+                #遍历整个axial_result,找到studyid 相同的项
                 if axial['studyUid'] == study['studyUid']:
                     mask.append(i)
             # mask = axial_result[:]['studyUid'] == study['studyUid']
-
+            if len(mask) == 0:
+                #在该study下,找不到axial图像,说明数据里没有axial图
+                #那么就查下一个result
+                continue
             #取出该study下所有的轴状图
             study_all_axial = axial_result[mask]
-
-
             # print(study_all_axial)
 
             annotation = study['annotation']
@@ -367,8 +422,6 @@ def CreatAxialDataset(dicomPath,jsonPath,is_train = True):
             #     points = annotation[0]['point']
             #
             # print(points)
-
-
             for point in points:
                 #逐个点进行遍历
 
@@ -450,7 +503,7 @@ def CreatAxialDataset(dicomPath,jsonPath,is_train = True):
                             if point['tag']['disc'] == '':
                                 axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path, 'label'] = 'v1'
                             else:
-                                axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'label']          = point['tag']['disc']
+                                axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path,'label']  = point['tag']['disc']
                         else:
                             if point['tag']['vertebra'] == '':
                                 axial_result_csv.loc[axial_result_csv['dcmPath'] == axial_path, 'label'] = 'v1'
@@ -556,6 +609,7 @@ def AddExtraAxialData(dcm_info_csv_path,axial_info_csv_path):
 
         if studyid == pre_studyid:
             continue
+
         pre_studyid = studyid
 
         dcm_study_part = dcm_info[dcm_info['studyUid'] == studyid]
@@ -771,18 +825,11 @@ def CreatPointToAxialCsv(result_dict_path,all_axial_csv_path,is_train):
                                                                   spacing=spacing,
                                                                   vector_x=vector_x,
                                                                   vector_y=vector_y)
-
-
-
-
             disc_to_all_axial_distance = []
 
 
             for i, axial in study_all_axial.iterrows():
                 # 对该disc点计算本study下所有的axial图像距离
-
-                # print("",i)
-                # print("index: %d,axialPath: %s " % (i, axial['dcmPath']))
 
                 ImagePosition = np.array(axial['ImagePosition'].split('\\'), np.float)
 
@@ -798,7 +845,7 @@ def CreatPointToAxialCsv(result_dict_path,all_axial_csv_path,is_train):
                                                   point_in_surface=ImagePosition,
                                                   point_outside=Disc_landmark_3DCoordinate)
 
-                # print("distance :",distance)
+
                 disc_to_all_axial_distance.append(distance)
 
             # print(disc_to_all_axial_distance)
