@@ -15,11 +15,11 @@ import pandas as pd
 
 
 
-def final_test(test_dataloader,model,testjson_path,test_json):
+def final_test(test_dataloader,model,model_type,test_json):
 
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device('cpu')
     # map = {'v1': 0, 'v2': 1, 'v3': 2, 'v4': 3, 'v5': 4}
     map = ['v1','v2','v3','v4','v5']
 
@@ -39,9 +39,13 @@ def final_test(test_dataloader,model,testjson_path,test_json):
             axial_img = axial_img.to(device)
             sag_img   = sag_img.to(device)
 
-            output = model(sag_img,axial_img)
+            if model_type == "Double":
+                output = model(sag_img,axial_img)
+            elif model_type == "Single":
+                sag_img = sag_img.repeat([1,3,1,1])
+                output = model(sag_img)
 
-            print(output)
+            # print(output)
 
             class_pred = np.squeeze(output.argmax(dim=1, keepdim=True).cpu().numpy())
 
@@ -245,8 +249,9 @@ def test_classification():
 
     ## 仅Sag一路##
 
-    vertebra_test_dataset = dataset.CropSagDataset('disc', is_train=True, transform=transform.val_transforms())
-    disc_test_dataset = dataset.CropSagDataset('vertebra', is_train=True, transform=transform.val_transforms())
+
+    vertebra_test_dataset = dataset.CropSagDataset('vertebra', is_train=False, transform=transform.val_transforms())
+    disc_test_dataset = dataset.CropSagDataset('disc', is_train=False, transform=transform.val_transforms())
 
 
 
@@ -269,18 +274,35 @@ def test_classification():
 
 
 
-    ####  Bagging_模型 ########
-    model_vertebra = model_axial.Bagging_Double_Model(model_name = config.model_name,
-                                                      net_num = config.k_fold,
-                                                      num_classes = config.num_classes[0],
-                                                      part = 'vertebra',
-                                                      nets_path = config.models_dir)
+    #### 双路 Bagging_模型 ########
+    # model_vertebra = model_axial.Bagging_Model(model_name = config.model_name,
+    #                                           net_num = config.k_fold,
+    #                                           num_classes = config.num_classes[0],
+    #                                           part = 'vertebra',
+    #                                           nets_path = config.models_dir)
+    #
+    # model_disc = model_axial.Bagging_Model(model_name = config.model_name,
+    #                                               net_num = config.k_fold,
+    #                                               num_classes = config.num_classes[1],
+    #                                               part = 'disc',
+    #                                               nets_path = config.models_dir)
 
-    model_disc = model_axial.Bagging_Double_Model(model_name = config.model_name,
+    ## 单路 Bagging模型
+    model_vertebra = model_axial.Bagging_Model(model_name = config.model_name,
+                                              net_num = config.k_fold,
+                                              num_classes = config.num_classes[0],
+                                              part = 'vertebra',
+                                              nets_path = config.models_dir)
+
+    model_disc = model_axial.Bagging_Model(model_name = config.model_name,
                                                   net_num = config.k_fold,
                                                   num_classes = config.num_classes[1],
                                                   part = 'disc',
                                                   nets_path = config.models_dir)
+
+
+    ## 单路bagging 模型
+    # model_vertebra = model_axial.Bagging_Model()
 
     test_json = pd.read_json(config.testjsonPath)
 
@@ -309,7 +331,7 @@ def test_classification():
 
        test_json = final_test(test_dataloader = test_dataloader,
                   model = model,
-                  testjson_path= config.testjsonPath,
+                  model_type = config.model_type,
                   test_json = test_json)
 
 

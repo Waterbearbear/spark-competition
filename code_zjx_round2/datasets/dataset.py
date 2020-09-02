@@ -37,15 +37,14 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 # trainPath = r'E:\BME\competition\spark\data\lumbar_train150'
 # trainjsonPath = r'E:\BME\competition\spark\data\lumbar_train150_annotation.json'
 
-
-
 class PrepareCropData:
-    def __init__(self, data_path, annotation_path,phase):
-        pkl_path_temp = ['studies_%s.pkl'%phase, 'annotation_%s.pkl'%phase,
-                    'vertebra_%s.pkl'%phase, 'disc_%s.pkl'%phase]
+    def __init__(self, data_path, annotation_path, phase):
+        pkl_path_temp = ['studies_%s.pkl' % phase, 'annotation_%s.pkl' % phase,
+                         'vertebra_%s.pkl' % phase, 'disc_%s.pkl' % phase]
 
-        pkl_path = [os.path.join(config.external_data_path,i) for i in pkl_path_temp]
+        pkl_path = [os.path.join(config.external_data_path, i) for i in pkl_path_temp]
 
+        print(pkl_path)
 
         if os.path.exists(pkl_path[2]) and os.path.exists(pkl_path[3]):
             print("exist!")
@@ -77,7 +76,7 @@ class PrepareCropData:
             disc_data[middle_frame.study_uid] = {}
             annotation = self.annotation[middle_frame.study_uid, middle_frame.series_uid, middle_frame.instance_uid]
             coord_vertebra = annotation[0][:, :2]
-            print(coord_vertebra.shape)
+
             coord_disc = annotation[1][:, :2]
             label_vertebra = annotation[0][:, 2]
             label_disc = annotation[1][:, 2]
@@ -92,20 +91,36 @@ class PrepareCropData:
             coord_disc = coord_disc.numpy() * [float(512) / float(width),
                                                float(512) / float(height)]
             #  crop_size = (48, 96)
+
             for i, coord in enumerate(coord_vertebra):
                 print(i)
+                for coord_index, coord in enumerate(coord_disc):
+                    if int(coord[1]) - 24 < 0:
+                        coord[1] = 24
+                    if int(coord[0]) - 48 < 0:
+                        coord[0] = 48
                 crop_img = img[int(coord[1]) - 24:int(coord[1]) + 24, int(coord[0]) - 48: int(coord[0]) + 48]
-                print(crop_img.shape)
-                if crop_img.shape != (48, 96):
-                    cv2.imshow('', img)
-                    cv2.waitKey(0)
-                crop_dict = {'img': crop_img, 'label': label_vertebra[i]}
+                # print(crop_img.shape)
+                # if crop_img.shape != (48, 96):
+                #     cv2.imshow('', img)
+                #     cv2.waitKey(0)
+                try:
+                    crop_dict = {'img': crop_img, 'label': label_vertebra[i]}
+                except:
+                    print("coord_vertebra.shape: ", coord_vertebra.shape)
+                    print("label_vertebra: ", label_vertebra)
+                    print("i = ",i)
                 vertebra_data[middle_frame.study_uid][vertebra_map[i]] = crop_dict
             for i, coord in enumerate(coord_disc):
+                for coord_index, coord in enumerate(coord_disc):
+                    if int(coord[1]) - 24 < 0:
+                        coord[1] = 24
+                    if int(coord[0]) - 48 < 0:
+                        coord[0] = 48
                 crop_img = img[int(coord[1]) - 24:int(coord[1]) + 24, int(coord[0]) - 48: int(coord[0]) + 48]
-                if crop_img.shape != (48, 96):
-                    cv2.imshow('', img)
-                    cv2.waitKey(0)
+                # if crop_img.shape != (48, 96):
+                #     cv2.imshow('', img)
+                #     cv2.waitKey(0)
                 crop_dict = {'img': crop_img, 'label': label_disc[i]}
                 disc_data[middle_frame.study_uid][disc_map[i]] = crop_dict
         # vertebra_data = {study_uid: {'T12': {'img': np.array, 'label': tensor}, ...}, ...}
@@ -678,7 +693,7 @@ class CropSagDataset(data.Dataset):
         self.vertebra_list = ['L1', 'L2', 'L3', 'L4', 'L5']
         self.disc_list = ['T12-L1', 'L1-L2', 'L2-L3', 'L3-L4', 'L4-L5', 'L5-S1']
 
-        if is_train:
+        if self.is_train == True:
             sag_train = PrepareCropData(config.trainPath, config.trainjsonPath, "train")
             sag_val = PrepareCropData(config.valPath, config.valjsonPath, "val")
 
@@ -693,7 +708,7 @@ class CropSagDataset(data.Dataset):
             for key, study in sag_val.vertebra_data.items():
                 self.sag_total.vertebra_data[key] = study
 
-        else:
+        elif self.is_train == False:
             self.sag_total = PrepareCropData(config.testPath,config.testjsonPath,"test")
 
         self.all_crop_sag = CreatCropSagDataset(self.sag_total,part)

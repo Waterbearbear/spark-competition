@@ -1,10 +1,9 @@
 import sys
-
 sys.path.append(r'.\utils')
 
 import numpy as np
 from sklearn.metrics import f1_score, precision_score, recall_score, \
-    accuracy_score
+     accuracy_score
 
 from torchvision import transforms
 import matplotlib.pyplot as plt
@@ -13,8 +12,8 @@ from utils.imgread import dicom_metainfo, dicom2array
 
 def clf_metrics(predictions, targets, average='macro'):
     f1 = f1_score(targets, predictions, average=average)
-    precision = precision_score(targets, predictions, average=average, zero_division=0)
-    recall = recall_score(targets, predictions, average=average, zero_division=0)
+    precision = precision_score(targets, predictions, average=average , zero_division= 0)
+    recall = recall_score(targets, predictions, average=average, zero_division = 0)
     acc = accuracy_score(targets, predictions)
 
     return acc, f1, precision, recall
@@ -57,29 +56,14 @@ def generate_target(img, pt, sigma, label_type='Gaussian'):
     img[img_y[0]:img_y[1], img_x[0]:img_x[1]] = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
     return img
 
-
-def coordRotate(pts, r, size):
-    center = size / 2
-    newpts = []
-    for pt in pts:
-        pt = pt - center
-        rad = r * np.pi / 180
-        newpts.append([int(pt[0] * np.cos(rad) + pt[1] * np.sin(rad) + center),
-                       int(pt[1] * np.cos(rad) - pt[0] * np.sin(rad) + center)])
-    return np.array(newpts, dtype='float64')
-
-
-def compute_nme(preds, target):
-    interocular = np.linalg.norm(target[0,] - target[10,])
-    nme = np.sum(np.linalg.norm(preds - target, axis=1)) / (interocular * 11)
-    return nme
-
-
 def imshow(tensor, title=None):
+
+
     unloader = transforms.ToPILImage()
     image = tensor.cpu().clone()
     image = image.squeeze(0)
     image = unloader(image)
-    # 先转换成PIL格式的image，再展示
-    plt.imshow(image, cmap='gray')
+    #先转换成PIL格式的image，再展示
+    plt.imshow(image,cmap = 'gray')
     plt.show()
+

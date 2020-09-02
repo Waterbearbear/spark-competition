@@ -4,8 +4,8 @@ import torch.nn.functional as F
 import torch.utils.data
 import torch
 import torch.nn.init as init
-from resnest.torch import resnest18,resnest50, resnest101
-from torchvision.models import resnet18, resnet50
+from resnest.torch import resnest18,resnest50,resnest101
+from torchvision.models import resnet18,resnet50
 
 import config
 
@@ -770,20 +770,20 @@ class ResNeSt(nn.Module):
 
         if self.modelname == "ResNeSt101":
             if pretrained_path == None:
-                self.net = resnest101(pretrained = True)
+                self.net = resnest101(pretrained = True).cuda()
                 # model.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
                 self.net.fc = nn.Linear(in_features=2048, out_features= self.num_classes, bias=True)
             else:
-                self.net = resnest101(pretrained = False)
+                self.net = resnest101(pretrained = False).cuda()
                 self.net.fc = nn.Linear(in_features=2048, out_features= self.num_classes , bias=True)
 
         elif self.modelname == 'ResNeSt50':
             if pretrained_path == None:
-                self.net = resnest50(pretrained=True)
+                self.net = resnest50(pretrained=True).cuda()
                 # model.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
                 self.net.fc = nn.Linear(in_features=2048, out_features= self.num_classes, bias=True)
             else:
-                self.net = resnest50(pretrained=False)
+                self.net = resnest50(pretrained=False).cuda()
                 self.net.fc = nn.Linear(in_features=2048, out_features= self.num_classes , bias=True)
 
 
@@ -805,7 +805,7 @@ class ResNeSt(nn.Module):
 
 
 class DoubleNet(nn.Module):
-    def __init__(self, modelname, num_classes, pretrained_path=None,bf16=True):
+    def __init__(self, modelname, num_classes, pretrained_path=None):
         #  modelname : backbone的名字
         #  num_classes: 最终输出的类别数
         #
@@ -820,16 +820,14 @@ class DoubleNet(nn.Module):
         self.pretrained_path = pretrained_path
         self.modelname = modelname
         self.num_classes = num_classes
-        self.bf16 = bf16
 
         if self.modelname == "ResNet18":
             ori_net = resnet18(pretrained = True)
 
         elif self.modelname == "ResNet50":
             ori_net = resnet50(pretrained=True)
-
-        elif self.modelname == "ResNetSt18":
-            ori_net = resnest50()
+        elif self.modelname == "ResNeSt18":
+            ori_net = resnest18(pretrained= True)
         else:
             ori_net = None
             raise NotImplementedError
@@ -902,11 +900,6 @@ class DoubleNet(nn.Module):
 
     def forward(self, sag_data,axial_data):
 
-
-        if self.bf16:
-            sag_data = sag_data.to_mkdnn(torch.bfloat16)
-            axial_data = axial_data.to_mkdnn(torch.bfloat16)
-
         sag_output   = self.net_sag(sag_data)
         axial_output = self.net_axl(axial_data)
 
@@ -914,8 +907,25 @@ class DoubleNet(nn.Module):
         concat_output = torch.squeeze(concat_output)
 
         logit = self.dropout(concat_output)
-        logit = self.fc(logit)
+        logit = self.fc(concat_output)
 
         # x = self.net(x)
 
         return logit
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

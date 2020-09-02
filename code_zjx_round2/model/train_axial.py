@@ -96,12 +96,6 @@ def val(model,weights,dataloader,device):
 
         report = classification_report(targetlist, predlist, output_dict=True)
 
-        # print
-
-
-
-
-
         f1_dict = {}
         #
         # map_dict = {'v1':'0.0',
@@ -189,6 +183,8 @@ def train_axial_model():
             raise ValueError
 
         for i in range(config.k_fold):
+            if i > 0:
+                break
             print(parse)
             modelname = config.model_name
             print(modelname)
