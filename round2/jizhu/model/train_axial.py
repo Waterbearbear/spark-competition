@@ -15,14 +15,14 @@ import torch.utils.data
 import os
 # import model_axial
 from . import model_axial
-
+from zoo.common.nncontext import *
+from zoo.pipeline.api.keras.optimizers import Adam
+from zoo.orca.learn.pytorch import Estimator
 import numpy as np
 import seaborn as sns
 import jizhu.config as config
 import time
-from zoo.common.nncontext import *
-from zoo.pipeline.api.keras.optimizers import Adam
-from zoo.orca.learn.pytorch import Estimator
+
 from sklearn.metrics import classification_report, confusion_matrix, precision_score
 from ..utils import util
 from torchsampler import ImbalancedDatasetSampler
@@ -55,7 +55,7 @@ def val(model, weights, dataloader, device):
         scorelist = []
         targetlist = []
         # Predict
-        for batch_index, (axial_img, sag_img, label, disc_path, identification, studyID) in enumerate(dataloader):
+        for batch_index, (axial_img, sag_img, label) in enumerate(dataloader):
             #
 
             axial_img, sag_img, target = axial_img.to(device), sag_img.to(device), label.to(device)
@@ -319,7 +319,6 @@ def train_axial_model():
             # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             device = torch.device('cpu')
 
-
             optimizer = optim.Adam(model.parameters(), lr=config.lr)
             scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.decay_epoch)
             # scheduler = optim.lr_scheduler.ExponentialLR(optimizer = optimizer,gamma = 0.98)
@@ -505,9 +504,6 @@ def train_axial_model():
 
 
 def TrainAxialModelinSpark():
-
-
-
     disc_all_dataset = dataset.SagAxialDataset(data_root_path=config.train_allPath,
                                                data_json_path=config.train_alljsonPath,
                                                part='disc',
@@ -522,7 +518,7 @@ def TrainAxialModelinSpark():
 
     # train_subset_dict = {}
 
-    #用于存放椎间盘和锥体两个model
+    # 用于存放椎间盘和锥体两个model
     model_dict = {}
 
     for parse in ["vertebra", "disc"]:
@@ -545,10 +541,10 @@ def TrainAxialModelinSpark():
             modelname = config.model_name
             if parse == "vertebra":
                 model = DoubleNet(modelname=modelname, num_classes=config.num_classes[0],
-                                  pretrained_path=config.pretrainedPath[0],bf16 = config.bf16)
+                                  pretrained_path=config.pretrainedPath[0], bf16=config.bf16)
             else:
                 model = DoubleNet(modelname=modelname, num_classes=config.num_classes[1],
-                                  pretrained_path=config.pretrainedPath[1],bf16 = config.bf16)
+                                  pretrained_path=config.pretrainedPath[1], bf16=config.bf16)
 
             print(model.net_sag)
 
@@ -579,12 +575,14 @@ def TrainAxialModelinSpark():
                                                            #                                  callback_get_label=callback_get_label),
                                                            num_workers=config.n_threads,
                                                            shuffle=True,
-                                                           pin_memory=True)
+                                                           pin_memory=True,
+                                                           collate_fn=dataset_.collate_fn)
 
             val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset,
                                                          batch_size=config.batch_size,
                                                          shuffle=False,
-                                                         pin_memory=True)
+                                                         pin_memory=True,
+                                                         collate_fn=dataset_.collate_fn)
 
             device = torch.device('cpu')
 
@@ -594,12 +592,12 @@ def TrainAxialModelinSpark():
             estimator.fit(data=train_dataloader, epochs=config.axial_epochs)
             trained_model = estimator.get_model()
 
-            acc, f1, prec, rec, f1_dict, test_loss = val(model = trained_model,
-                                                         weights = weights,
-                                                         dataloader = val_dataloader,
-                                                         device = 'cpu')
+            acc, f1, prec, rec, f1_dict, test_loss = val(model=trained_model,
+                                                         weights=weights,
+                                                         dataloader=val_dataloader,
+                                                         device='cpu')
 
-            if f1>f1_best:
+            if f1 > f1_best:
                 # 选择5折中,f1分数最高的模型
                 best_model = trained_model
                 f1_best = f1

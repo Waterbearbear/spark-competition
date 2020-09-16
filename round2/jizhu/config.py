@@ -14,7 +14,7 @@ train_allPath = r'/tcdata/round2train'
 train_alljsonPath = r'/tcdata/round2train_checked.json'
 
 testPath = r'/tcdata/round2test'
-testMapjsonPath = r'/tcdata/round2_series_map.json'
+testMapjsonPath = r'/tcdata/testB50_series_map.json'
 
 ##keypoint detection 阶段结束后,生成的json
 testjsonPath = r'/result_temp.json'

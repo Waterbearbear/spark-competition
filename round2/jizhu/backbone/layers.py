@@ -9,12 +9,10 @@ from torchvision.models import resnet18, resnet50
 
 import jizhu.config
 
-
 class conv_block(nn.Module):
     """
     Convolution Block
     """
-
     def __init__(self, in_ch, out_ch):
         super(conv_block, self).__init__()
 
@@ -27,6 +25,7 @@ class conv_block(nn.Module):
             nn.ReLU(inplace=True))
 
     def forward(self, x):
+
         x = self.conv(x)
         return x
 
@@ -35,7 +34,6 @@ class up_conv(nn.Module):
     """
     Up Convolution Block
     """
-
     def __init__(self, in_ch, out_ch):
         super(up_conv, self).__init__()
         self.up = nn.Sequential(
@@ -48,7 +46,6 @@ class up_conv(nn.Module):
     def forward(self, x):
         x = self.up(x)
         return x
-
 
 import torch
 import torch.nn as nn
@@ -118,7 +115,6 @@ class Recurrent_block(nn.Module):
     """
     Recurrent Block for R2Unet_CNN
     """
-
     def __init__(self, out_ch, t=2):
         super(Recurrent_block, self).__init__()
 
@@ -142,7 +138,6 @@ class RRCNN_block(nn.Module):
     """
     Recurrent Residual Convolutional Neural Network Block
     """
-
     def __init__(self, in_ch, out_ch, t=2):
         super(RRCNN_block, self).__init__()
 
@@ -164,7 +159,6 @@ class R2U_Net(nn.Module):
     R2U-Unet implementation
     Paper: https://arxiv.org/abs/1802.06955
     """
-
     def __init__(self, img_ch=3, output_ch=1, t=2):
         super(R2U_Net, self).__init__()
 
@@ -202,9 +196,11 @@ class R2U_Net(nn.Module):
 
         self.Conv = nn.Conv2d(filters[0], output_ch, kernel_size=1, stride=1, padding=0)
 
-    # self.active = torch.nn.Sigmoid()
+       # self.active = torch.nn.Sigmoid()
+
 
     def forward(self, x):
+
         e1 = self.RRCNN1(x)
 
         e2 = self.Maxpool(e1)
@@ -237,7 +233,7 @@ class R2U_Net(nn.Module):
 
         out = self.Conv(d2)
 
-        # out = self.active(out)
+      # out = self.active(out)
 
         return out
 
@@ -247,7 +243,7 @@ class Attention_block(nn.Module):
     Attention Block
     """
 
-    def __init__(self, F_g, F_l, F_int, k=1, p=0, s=1):
+    def __init__(self, F_g, F_l, F_int,k=1,p=0,s=1):
         super(Attention_block, self).__init__()
 
         self.W_g = nn.Sequential(
@@ -282,7 +278,6 @@ class AttU_Net(nn.Module):
     Attention Unet implementation
     Paper: https://arxiv.org/abs/1804.03999
     """
-
     def __init__(self, img_ch=1, output_ch=1):
         super(AttU_Net, self).__init__()
 
@@ -301,7 +296,7 @@ class AttU_Net(nn.Module):
         self.Conv5 = conv_block(filters[3], filters[4])
 
         self.Up5 = up_conv(filters[4], filters[3])
-        self.Att5 = Attention_block(F_g=filters[3], F_l=filters[3], F_int=filters[2], k=1, p=0)
+        self.Att5 = Attention_block(F_g=filters[3], F_l=filters[3], F_int=filters[2],k=1,p=0)
         self.Up_conv5 = conv_block(filters[4], filters[3])
 
         self.Up4 = up_conv(filters[3], filters[2])
@@ -318,9 +313,11 @@ class AttU_Net(nn.Module):
 
         self.Conv = nn.Conv2d(filters[0], output_ch, kernel_size=1, stride=1, padding=0)
 
-        # self.active = torch.nn.Sigmoid()
+        #self.active = torch.nn.Sigmoid()
+
 
     def forward(self, x):
+
         e1 = self.Conv1(x)
 
         e2 = self.Maxpool1(e1)
@@ -335,8 +332,9 @@ class AttU_Net(nn.Module):
         e5 = self.Maxpool4(e4)
         e5 = self.Conv5(e5)
 
+
         d5 = self.Up5(e5)
-        # print(d5.shape)
+        #print(d5.shape)
         x4 = self.Att5(g=d5, x=e4)
         d5 = torch.cat((x4, d5), dim=1)
         d5 = self.Up_conv5(d5)
@@ -358,7 +356,7 @@ class AttU_Net(nn.Module):
 
         out = self.Conv(d2)
 
-        #  out = self.active(out)
+      #  out = self.active(out)
 
         return out
 
@@ -368,7 +366,6 @@ class R2AttU_Net(nn.Module):
     Residual Recuurent Block with attention Unet
     Implementation : https://github.com/LeeJunHyun/Image_Segmentation
     """
-
     def __init__(self, in_ch=3, out_ch=1, t=2):
         super(R2AttU_Net, self).__init__()
 
@@ -404,9 +401,11 @@ class R2AttU_Net(nn.Module):
 
         self.Conv = nn.Conv2d(filters[0], out_ch, kernel_size=1, stride=1, padding=0)
 
-    # self.active = torch.nn.Sigmoid()
+       # self.active = torch.nn.Sigmoid()
+
 
     def forward(self, x):
+
         e1 = self.RRCNN1(x)
 
         e2 = self.Maxpool1(e1)
@@ -443,12 +442,11 @@ class R2AttU_Net(nn.Module):
 
         out = self.Conv(d2)
 
-        #  out = self.active(out)
+      #  out = self.active(out)
 
         return out
 
-
-# For nested 3 channels are required
+#For nested 3 channels are required
 
 class conv_block_nested(nn.Module):
 
@@ -471,15 +469,13 @@ class conv_block_nested(nn.Module):
 
         return output
 
-
-# Nested Unet
+#Nested Unet
 
 class NestedUNet(nn.Module):
     """
     Implementation of this paper:
     https://arxiv.org/pdf/1807.10165.pdf
     """
-
     def __init__(self, in_ch=3, out_ch=1):
         super(NestedUNet, self).__init__()
 
@@ -500,18 +496,20 @@ class NestedUNet(nn.Module):
         self.conv2_1 = conv_block_nested(filters[2] + filters[3], filters[2], filters[2])
         self.conv3_1 = conv_block_nested(filters[3] + filters[4], filters[3], filters[3])
 
-        self.conv0_2 = conv_block_nested(filters[0] * 2 + filters[1], filters[0], filters[0])
-        self.conv1_2 = conv_block_nested(filters[1] * 2 + filters[2], filters[1], filters[1])
-        self.conv2_2 = conv_block_nested(filters[2] * 2 + filters[3], filters[2], filters[2])
+        self.conv0_2 = conv_block_nested(filters[0]*2 + filters[1], filters[0], filters[0])
+        self.conv1_2 = conv_block_nested(filters[1]*2 + filters[2], filters[1], filters[1])
+        self.conv2_2 = conv_block_nested(filters[2]*2 + filters[3], filters[2], filters[2])
 
-        self.conv0_3 = conv_block_nested(filters[0] * 3 + filters[1], filters[0], filters[0])
-        self.conv1_3 = conv_block_nested(filters[1] * 3 + filters[2], filters[1], filters[1])
+        self.conv0_3 = conv_block_nested(filters[0]*3 + filters[1], filters[0], filters[0])
+        self.conv1_3 = conv_block_nested(filters[1]*3 + filters[2], filters[1], filters[1])
 
-        self.conv0_4 = conv_block_nested(filters[0] * 4 + filters[1], filters[0], filters[0])
+        self.conv0_4 = conv_block_nested(filters[0]*4 + filters[1], filters[0], filters[0])
 
         self.final = nn.Conv2d(filters[0], out_ch, kernel_size=1)
 
+
     def forward(self, x):
+
         x0_0 = self.conv0_0(x)
         x1_0 = self.conv1_0(self.pool(x0_0))
         x0_1 = self.conv0_1(torch.cat([x0_0, self.Up(x1_0)], 1))
@@ -534,9 +532,8 @@ class NestedUNet(nn.Module):
         output = self.final(x0_4)
         return output
 
-
-# Dictioary Unet
-# if required for getting the filters and model parameters for each step
+#Dictioary Unet
+#if required for getting the filters and model parameters for each step
 
 class ConvolutionBlock(nn.Module):
     """Convolution block"""
@@ -636,12 +633,12 @@ class Unet_dict(nn.Module):
         return F.softmax(self.output(u0), dim=1)
 
 
+
 """ Counception Model
 A Pytorch implementation of Count-ception architecture designed for intervertebral disc detection
 based on : https://arxiv.org/abs/1703.08710
 modifed from github https://github.com/roggirg/count-ception_mbm/blob/master/train.py
 """
-
 
 class ConvBlock(nn.Module):
     def __init__(self, in_chan, out_chan, ksize=3, stride=1, pad=0, activation=nn.LeakyReLU()):
@@ -721,32 +718,32 @@ class ModelCountception_v2(nn.Module):
 
     def forward(self, x):
         net = self.conv1(x)  # 32
-        # self._print(net)
+       # self._print(net)
 
         net = self.simple1(net)
 
         # self._print(net)
         net = self.simple2(net)
 
-        # self._print(net)
+        #self._print(net)
 
         net = self.conv2(net)
-        # self._print(net)
+        #self._print(net)
         net = self.simple3(net)
-        # self._print(net)
+        #self._print(net)
         net = self.simple4(net)
-        # self._print(net)
+        #self._print(net)
         net = self.simple5(net)
-        # self._print(net)
+        #self._print(net)
         net = self.simple6(net)
-        # self._print(net)
+        #self._print(net)
         net = self.conv3(net)
-        # self._print(net)
+        #self._print(net)
         net = self.conv4(net)
-        # self._print(net)
+        #self._print(net)
         net = self.conv5(net)
 
-        # self._print(net)
+        #self._print(net)
 
         if self.use_logits:
             net = [c(net) for c in self.conv6]
@@ -754,7 +751,7 @@ class ModelCountception_v2(nn.Module):
         else:
             net = self.conv6(net)
 
-            # self._print(net)
+            #self._print(net)
         return net
 
     def name(self):
@@ -763,30 +760,32 @@ class ModelCountception_v2(nn.Module):
 
 class ResNeSt(nn.Module):
 
-    def __init__(self, modelname, num_classes, pretrained_path=None):
+    def __init__(self, modelname,num_classes,pretrained_path=None):
         super(ResNeSt, self).__init__()
 
         self.pretrained_path = pretrained_path
         self.modelname = modelname
         self.num_classes = num_classes
 
+
         if self.modelname == "ResNeSt101":
             if pretrained_path == None:
-                self.net = resnest101(pretrained=True)
+                self.net = resnest101(pretrained = True)
                 # model.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-                self.net.fc = nn.Linear(in_features=2048, out_features=self.num_classes, bias=True)
+                self.net.fc = nn.Linear(in_features=2048, out_features= self.num_classes, bias=True)
             else:
-                self.net = resnest101(pretrained=False)
-                self.net.fc = nn.Linear(in_features=2048, out_features=self.num_classes, bias=True)
+                self.net = resnest101(pretrained = False)
+                self.net.fc = nn.Linear(in_features=2048, out_features= self.num_classes , bias=True)
 
         elif self.modelname == 'ResNeSt50':
             if pretrained_path == None:
                 self.net = resnest50(pretrained=True)
                 # model.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-                self.net.fc = nn.Linear(in_features=2048, out_features=self.num_classes, bias=True)
+                self.net.fc = nn.Linear(in_features=2048, out_features= self.num_classes, bias=True)
             else:
                 self.net = resnest50(pretrained=False)
-                self.net.fc = nn.Linear(in_features=2048, out_features=self.num_classes, bias=True)
+                self.net.fc = nn.Linear(in_features=2048, out_features= self.num_classes , bias=True)
+
 
             pretrain_dict = torch.load(self.pretrained_path)
             model_dict = self.net.state_dict()
@@ -806,7 +805,7 @@ class ResNeSt(nn.Module):
 
 
 class DoubleNet(nn.Module):
-    def __init__(self, modelname, num_classes, pretrained_path=None, bf16=True):
+    def __init__(self, modelname, num_classes, pretrained_path=None,bf16=True):
         #  modelname : backbone的名字
         #  num_classes: 最终输出的类别数
         #
@@ -814,6 +813,7 @@ class DoubleNet(nn.Module):
         # sag,axl图 分别输入至两个ResNet18模型中
         # 两个ResNet的最后一层卷积层输出 经过global pooling之后
         # 两个输出在通道上concat在一起,输入至一个fc层得到最终结果
+
 
         super(DoubleNet, self).__init__()
 
@@ -823,7 +823,7 @@ class DoubleNet(nn.Module):
         self.bf16 = bf16
 
         if self.modelname == "ResNet18":
-            ori_net = resnet18(pretrained=True)
+            ori_net = resnet18(pretrained = True)
 
         elif self.modelname == "ResNet50":
             ori_net = resnet50(pretrained=True)
@@ -841,7 +841,7 @@ class DoubleNet(nn.Module):
 
         if self.modelname == "ResNeSt18":
             self.net_sag[0] = nn.Sequential(
-                nn.Conv2d(1, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False),
+                nn.Conv2d(1,32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False),
                 nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
                 nn.ReLU(inplace=True),
                 nn.Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False),
@@ -850,7 +850,7 @@ class DoubleNet(nn.Module):
                 nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
             )
             self.net_axl[0] = nn.Sequential(
-                nn.Conv2d(1, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False),
+                nn.Conv2d(1,32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False),
                 nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
                 nn.ReLU(inplace=True),
                 nn.Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False),
@@ -863,9 +863,9 @@ class DoubleNet(nn.Module):
             self.net_sag[0] = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
             self.net_axl[0] = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
-        self.fc = nn.Linear(self.fc_in_features * 2, self.num_classes)
+        self.fc = nn.Linear(self.fc_in_features * 2,self.num_classes)
         self.dropout = nn.Dropout(0.2)
-        self.softmax = nn.Softmax(dim=1)
+        self.softmax = nn.Softmax(dim = 1)
 
         # pretrain_dict = {}
 
@@ -899,8 +899,8 @@ class DoubleNet(nn.Module):
 
         del ori_net
 
-    def forward(self, sag_data, axial_data):
 
+    def _train(self, sag_data, axial_data):
         if self.bf16:
             sag_data = sag_data.to_mkdnn(torch.bfloat16)
             axial_data = axial_data.to_mkdnn(torch.bfloat16)
@@ -917,3 +917,6 @@ class DoubleNet(nn.Module):
         # x = self.net(x)
 
         return logit
+
+    def forward(self, args):
+        return self._train(*args)

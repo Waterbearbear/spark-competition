@@ -234,7 +234,7 @@ class CoordDataset(data.Dataset):
 
 
 class TestDataset(data.Dataset):
-    def __init__(self, test_path, map_json):
+    def __init__(self, test_path):
         pkl_path = './test.pkl'
         if not os.path.exists(pkl_path):
             self.test_studies = construct_studies(test_path)
@@ -315,7 +315,7 @@ class TestDatasetB(data.Dataset):
         ])
 
     def __len__(self):
-        return len(self.test_studies)
+        return len(self.test_list)
 
     def __getitem__(self, item):
         middle_frame = self.test_list[item]
@@ -718,6 +718,18 @@ class SagAxialDataset(data.Dataset):
         # print("type label: ",type(label))
 
         return axial_img, sag_img, label, disc_path, identification, studyID
+
+    def collate_fn(self, data):
+        axial_imgs, sag_imgs, labels = [], [], []
+        for axial_img, sag_img, label, _, _, _ in data:
+            axial_imgs.append(axial_img)
+            sag_imgs.append(sag_img)
+            labels.append(label)
+        axial_imgs = torch.stack(axial_imgs, dim=0)
+        sag_imgs = torch.stack(sag_imgs, dim=0)
+        labels = torch.from_numpy(np.array(labels))
+        data = (axial_imgs, sag_imgs)
+        return data, labels
 
 
 class SagAxial_Test_Dataset(data.Dataset):

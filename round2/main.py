@@ -12,7 +12,7 @@ from jizhu.model.coordmodel import SparkModel, NullLoss
 from jizhu.model.coordmodel_spark import CoordModel
 from jizhu.model.coordtrain import train
 from jizhu.utils.imgread import dicom2array
-from jizhu.datasets.dataset import CoordDataset, TestDatasetB
+from jizhu.datasets.dataset import CoordDataset, TestDataset
 
 # from spinal_code.core.disease.data_loader import DisDataSet
 # from spinal_code.core.disease.evaluation import Evaluator
@@ -65,14 +65,14 @@ if __name__ == "__main__":
     parser.add_argument('--isTrain', type=bool, default=True)
     parser.add_argument('--continue_train', type=bool, default=False)
     parser.add_argument('--batchsize', type=int, default=1, help='input batch size')
-    parser.add_argument('--epoch', type=int, default=100, help='epoch')
+    parser.add_argument('--epoch', type=int, default=10, help='epoch')
     parser.add_argument('--gpu_ids', type=str, default='-1', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
     parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
     parser.add_argument('--lr', type=float, default=0.001, help='initial learning rate for adam')
     parser.add_argument('--weights', type=int, default=0)
     parser.add_argument('--num_workers', '-n', type=int, default=4,
                         help="The number of Horovod workers launched for distributed training.")
-    parser.add_argument('--worker_cores', '-c', type=int, default=1,
+    parser.add_argument('--worker_cores', '-c', type=int, default=4,
                         help='The number of cores allocated for each worker.')
     parser.add_argument('--master', '-m', type=str,
                         help='The Spark master address of a standalone cluster if any.')
@@ -85,6 +85,7 @@ if __name__ == "__main__":
         master=opt.master,
         num_executors=opt.num_workers,
         executor_cores=opt.worker_cores,
+        executor_memory="30g",
         driver_memory="40g",
         conf={"spark.executorEnv.LD_LIBRARY_PATH": "/opt/conda/lib:/opt/conda/envs/tianchi_zoo/lib/:"})
 
@@ -99,62 +100,61 @@ if __name__ == "__main__":
 
 
     # val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, batch_size=opt.batchsize, shuffle=True)
-    unet_model = UNet_3Plus(in_channels=3, n_classes=11)
-    coord_model = CoordModel(model=unet_model)
+    # unet_model = UNet_3Plus(in_channels=3, n_classes=11)
+    # coord_model = CoordModel(model=unet_model)
     # train(opt, train_dataloader, val_dataloader, model)
-    # predict coord training end
-    estimator = Estimator.from_torch(model=coord_model, loss=NullLoss(),
-                                     optimizer=Adam(lr=1e-4), backend="bigdl")
-    estimator.fit(data=train_dataloader, epochs=opt.epoch)
-    # predict coord testing start
-    trained_model = estimator.get_model()
-    testdataset = TestDatasetB(config.testPath,
-                               map_json=config.testMapjsonPath)
-    opt.isTrain = False
-    dataloader = torch.utils.data.DataLoader(dataset=testdataset, batch_size=1, shuffle=False)
-    json_list = []
-    trained_model.eval()
-    for i, data in enumerate(dataloader):
-        meta = data[1]
-        ori_img = dicom2array(meta['path'][0])
-        _, preCoord = trained_model(data[0], meta)
-        vertebra_coord = preCoord[:5]
-        disc_coord = preCoord[5:]
-        preCoord = []
-        j, k = 0, 0
-        for i in range(11):
-            if i % 2 == 0:
-                preCoord.append(disc_coord[j])
-                j += 1
-            else:
-                preCoord.append(vertebra_coord[k])
-                k += 1
-        annotation = {"annotator": 13, "data": {"point": []}}
-        for j, coord in enumerate(preCoord):
-            point = {"coord": [np.around(coord[0]), np.around(coord[1])],
-                     'tag': {'identification': ide[j], 'disc' if j % 2 == 0 else 'vertebra': None},
-                     'zIndex': int(meta['instance_number'][0]) - 1}
-            annotation['data']["point"].append(point)
-        data_list = {"instanceUid": meta['instance_uid'][0], "seriesUid": meta['series_uid'][0],
-                     "annotation": [annotation]}
-        test_list = {"studyUid": meta['study_uid'][0], "data": [data_list]}
-        # print(meta['study_uid'][0])
-        json_list.append(test_list)
-        # point_size = 1
-        # point_color = (0, 0, 255)  # BGR
-        # thickness = 4  # 可以为 0 、4、8
-        # ori_img = cv2.merge([ori_img, ori_img, ori_img])
-        # for coord in preCoord:
-        #     coord = (int(coord[0]), int(coord[1]))
-        #     cv2.circle(ori_img, coord, point_size, point_color, thickness)
-        # cv2.imshow('', ori_img)
-        # cv2.waitKey(0)
-    print(json_list)
-    jsondata = json.dumps(json_list)
-    f = open(config.testjsonPath, 'w')
-    f.write(jsondata)
-    f.close()
-    # predict coord testing end
+    # # predict coord training end
+    # estimator = Estimator.from_torch(model=coord_model, loss=NullLoss(),
+    #                                  optimizer=Adam(lr=1e-4), backend="bigdl")
+    # estimator.fit(data=train_dataloader, epochs=opt.epoch)
+    # trained_model = estimator.get_model()
+    # # predict coord testing start
+    # trained_model.eval()
+    # testdataset = TestDataset(config.testPath)
+    # opt.isTrain = False
+    # dataloader = torch.utils.data.DataLoader(dataset=testdataset, batch_size=1, shuffle=False)
+    # json_list = []
+    # for i, data in enumerate(dataloader):
+    #     meta = data[1]
+    #     ori_img = dicom2array(meta['path'][0])
+    #     _, preCoord = trained_model((data[0], data[1]))
+    #     vertebra_coord = preCoord[:5]
+    #     disc_coord = preCoord[5:]
+    #     preCoord = []
+    #     j, k = 0, 0
+    #     for i in range(11):
+    #         if i % 2 == 0:
+    #             preCoord.append(disc_coord[j])
+    #             j += 1
+    #         else:
+    #             preCoord.append(vertebra_coord[k])
+    #             k += 1
+    #     annotation = {"annotator": 13, "data": {"point": []}}
+    #     for j, coord in enumerate(preCoord):
+    #         point = {"coord": [np.around(coord[0]), np.around(coord[1])],
+    #                  'tag': {'identification': ide[j], 'disc' if j % 2 == 0 else 'vertebra': None},
+    #                  'zIndex': int(meta['instance_number'][0]) - 1}
+    #         annotation['data']["point"].append(point)
+    #     data_list = {"instanceUid": meta['instance_uid'][0], "seriesUid": meta['series_uid'][0],
+    #                  "annotation": [annotation]}
+    #     test_list = {"studyUid": meta['study_uid'][0], "data": [data_list]}
+    #     # print(meta['study_uid'][0])
+    #     json_list.append(test_list)
+    #     # point_size = 1
+    #     # point_color = (0, 0, 255)  # BGR
+    #     # thickness = 4  # 可以为 0 、4、8
+    #     # ori_img = cv2.merge([ori_img, ori_img, ori_img])
+    #     # for coord in preCoord:
+    #     #     coord = (int(coord[0]), int(coord[1]))
+    #     #     cv2.circle(ori_img, coord, point_size, point_color, thickness)
+    #     # cv2.imshow('', ori_img)
+    #     # cv2.waitKey(0)
+    # print(json_list)
+    # jsondata = json.dumps(json_list)
+    # f = open(config.testjsonPath, 'w')
+    # f.write(jsondata)
+    # f.close()
+    # # predict coord testing end
 
     ###################分类#################################
 

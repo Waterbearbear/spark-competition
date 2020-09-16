@@ -1,7 +1,7 @@
 import torch
 from ..model import model_axial
 from ..backbone import layers
-import jizhu.config
+import jizhu.config as config
 import os
 from ..datasets import dataset, transform
 import torch.nn.functional as F

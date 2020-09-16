@@ -263,4 +263,4 @@ class SparkModel(nn.Module):
 
 class NullLoss:
     def __call__(self, x, y):
-        return x[0].mean()
+        return x
