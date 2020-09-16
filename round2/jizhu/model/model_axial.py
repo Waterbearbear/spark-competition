@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import numpy as np
 from ..backbone.layers import DoubleNet
 
-import jizhu.config
+import jizhu.config as config
 from resnest.torch import resnest101, resnest50
 
 

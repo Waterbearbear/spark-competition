@@ -92,68 +92,67 @@ if __name__ == "__main__":
 
     # predict coord training start
 
-    # val_dataset = CoordDataset(opt.val_path, opt.val_json, is_flip=False, is_rot=False, is_train=False)
     def train_dataloader():
         train_dataset = CoordDataset(opt.train_path, opt.train_json, is_flip=True, is_rot=True, is_train=True)
         return torch.utils.data.DataLoader(dataset=train_dataset, batch_size=opt.batchsize, shuffle=True, num_workers=3,
                                            pin_memory=False, collate_fn=train_dataset.collate_fn)
 
 
-    # val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, batch_size=opt.batchsize, shuffle=True)
-    # unet_model = UNet_3Plus(in_channels=3, n_classes=11)
-    # coord_model = CoordModel(model=unet_model)
-    # train(opt, train_dataloader, val_dataloader, model)
-    # # predict coord training end
-    # estimator = Estimator.from_torch(model=coord_model, loss=NullLoss(),
-    #                                  optimizer=Adam(lr=1e-4), backend="bigdl")
-    # estimator.fit(data=train_dataloader, epochs=opt.epoch)
-    # trained_model = estimator.get_model()
+    val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, batch_size=opt.batchsize, shuffle=True)
+    unet_model = UNet_3Plus(in_channels=3, n_classes=11)
+    coord_model = CoordModel(model=unet_model)
+    train(opt, train_dataloader, val_dataloader, model)
+    # predict coord training end
+    estimator = Estimator.from_torch(model=coord_model, loss=NullLoss(),
+                                     optimizer=Adam(lr=1e-4), backend="bigdl")
+    estimator.fit(data=train_dataloader, epochs=opt.epoch)
+    trained_model = estimator.get_model()
     # # predict coord testing start
-    # trained_model.eval()
-    # testdataset = TestDataset(config.testPath)
-    # opt.isTrain = False
-    # dataloader = torch.utils.data.DataLoader(dataset=testdataset, batch_size=1, shuffle=False)
-    # json_list = []
-    # for i, data in enumerate(dataloader):
-    #     meta = data[1]
-    #     ori_img = dicom2array(meta['path'][0])
-    #     _, preCoord = trained_model((data[0], data[1]))
-    #     vertebra_coord = preCoord[:5]
-    #     disc_coord = preCoord[5:]
-    #     preCoord = []
-    #     j, k = 0, 0
-    #     for i in range(11):
-    #         if i % 2 == 0:
-    #             preCoord.append(disc_coord[j])
-    #             j += 1
-    #         else:
-    #             preCoord.append(vertebra_coord[k])
-    #             k += 1
-    #     annotation = {"annotator": 13, "data": {"point": []}}
-    #     for j, coord in enumerate(preCoord):
-    #         point = {"coord": [np.around(coord[0]), np.around(coord[1])],
-    #                  'tag': {'identification': ide[j], 'disc' if j % 2 == 0 else 'vertebra': None},
-    #                  'zIndex': int(meta['instance_number'][0]) - 1}
-    #         annotation['data']["point"].append(point)
-    #     data_list = {"instanceUid": meta['instance_uid'][0], "seriesUid": meta['series_uid'][0],
-    #                  "annotation": [annotation]}
-    #     test_list = {"studyUid": meta['study_uid'][0], "data": [data_list]}
-    #     # print(meta['study_uid'][0])
-    #     json_list.append(test_list)
-    #     # point_size = 1
-    #     # point_color = (0, 0, 255)  # BGR
-    #     # thickness = 4  # 可以为 0 、4、8
-    #     # ori_img = cv2.merge([ori_img, ori_img, ori_img])
-    #     # for coord in preCoord:
-    #     #     coord = (int(coord[0]), int(coord[1]))
-    #     #     cv2.circle(ori_img, coord, point_size, point_color, thickness)
-    #     # cv2.imshow('', ori_img)
-    #     # cv2.waitKey(0)
-    # print(json_list)
-    # jsondata = json.dumps(json_list)
-    # f = open(config.testjsonPath, 'w')
-    # f.write(jsondata)
-    # f.close()
+    trained_model.eval()
+    testdataset = TestDataset(config.testPath)
+    opt.isTrain = False
+    dataloader = torch.utils.data.DataLoader(dataset=testdataset, batch_size=1, shuffle=False)
+    json_list = []
+    for i, data in enumerate(dataloader):
+        meta = data[1]
+        ori_img = dicom2array(meta['path'][0])
+        _, preCoord = trained_model((data[0], data[1]))
+        vertebra_coord = preCoord[:5]
+        disc_coord = preCoord[5:]
+        preCoord = []
+        j, k = 0, 0
+        for i in range(11):
+            if i % 2 == 0:
+                preCoord.append(disc_coord[j])
+                j += 1
+            else:
+                preCoord.append(vertebra_coord[k])
+                k += 1
+        annotation = {"annotator": 13, "data": {"point": []}}
+        for j, coord in enumerate(preCoord):
+            point = {"coord": [np.around(coord[0]), np.around(coord[1])],
+                     'tag': {'identification': ide[j], 'disc' if j % 2 == 0 else 'vertebra': None},
+                     'zIndex': int(meta['instance_number'][0]) - 1}
+            annotation['data']["point"].append(point)
+        data_list = {"instanceUid": meta['instance_uid'][0], "seriesUid": meta['series_uid'][0],
+                     "annotation": [annotation]}
+        test_list = {"studyUid": meta['study_uid'][0], "data": [data_list]}
+        # print(meta['study_uid'][0])
+        json_list.append(test_list)
+        # point_size = 1
+        # point_color = (0, 0, 255)  # BGR
+        # thickness = 4  # 可以为 0 、4、8
+        # ori_img = cv2.merge([ori_img, ori_img, ori_img])
+        # for coord in preCoord:
+        #     coord = (int(coord[0]), int(coord[1]))
+        #     cv2.circle(ori_img, coord, point_size, point_color, thickness)
+        # cv2.imshow('', ori_img)
+        # cv2.waitKey(0)
+    print(json_list)
+    jsondata = json.dumps(json_list)
+    f = open(config.testjsonPath, 'w')
+    f.write(jsondata)
+    f.close()
     # # predict coord testing end
 
     ###################分类#################################

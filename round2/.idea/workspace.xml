@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="4eaa2128-ac28-428a-9452-09e6c6bb8b51" name="Default Changelist" comment="" />
+    <list default="true" id="4eaa2128-ac28-428a-9452-09e6c6bb8b51" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/jizhu/model/model_axial.py" beforeDir="false" afterPath="$PROJECT_DIR$/jizhu/model/model_axial.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
